@@ -1,0 +1,256 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  PiggyBank, 
+  TrendingUp, 
+  TrendingDown, 
+  Calculator, 
+  Calendar, 
+  Bot,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Target,
+  AlertTriangle,
+  CheckCircle2,
+  Lightbulb
+} from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+
+const Dashboard = () => {
+  // Dummy data for charts
+  const expenseData = [
+    { name: 'Food', value: 8500, color: '#ef4444' },
+    { name: 'Transport', value: 3200, color: '#f97316' },
+    { name: 'Shopping', value: 4500, color: '#eab308' },
+    { name: 'Bills', value: 6800, color: '#22c55e' },
+    { name: 'Entertainment', value: 2800, color: '#3b82f6' },
+  ];
+
+  const monthlyData = [
+    { month: 'Jan', income: 45000, expense: 32000 },
+    { month: 'Feb', income: 45000, expense: 28000 },
+    { month: 'Mar', income: 45000, expense: 35000 },
+    { month: 'Apr', income: 45000, expense: 31000 },
+    { month: 'May', income: 45000, expense: 29000 },
+    { month: 'Jun', income: 45000, expense: 33000 },
+  ];
+
+  const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);
+  const monthlyIncome = 45000;
+  const monthlySavings = monthlyIncome - totalExpenses;
+  const savingsPercentage = (monthlySavings / monthlyIncome) * 100;
+
+  const aiInsights = [
+    {
+      type: 'warning',
+      icon: AlertTriangle,
+      text: "You spent 30% more on food this month compared to last month.",
+      actionable: true
+    },
+    {
+      type: 'success', 
+      icon: CheckCircle2,
+      text: "Great job! You're on track to meet your savings goal.",
+      actionable: false
+    },
+    {
+      type: 'tip',
+      icon: Lightbulb,
+      text: "Consider switching to a higher yield savings account for better returns.",
+      actionable: true
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Greeting */}
+      <div className="mb-6 sm:mb-8">
+        <h1 className="mobile-heading font-bold mb-2">Hi Ankit 👋</h1>
+        <p className="mobile-body text-muted-foreground">Keep up the great work with your financial goals!</p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="mobile-grid mb-6 sm:mb-8">
+        <Card className="shadow-card border-0">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="mobile-caption text-muted-foreground">Monthly Income</p>
+                <p className="mobile-title font-bold text-success">₹{monthlyIncome.toLocaleString()}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-success/10 flex items-center justify-center">
+                <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card border-0">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="mobile-caption text-muted-foreground">Monthly Expenses</p>
+                <p className="mobile-title font-bold text-danger">₹{totalExpenses.toLocaleString()}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-danger/10 flex items-center justify-center">
+                <ArrowDownRight className="w-5 h-5 sm:w-6 sm:h-6 text-danger" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card border-0">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="mobile-caption text-muted-foreground">Saved This Month</p>
+                <p className="mobile-title font-bold text-primary">₹{monthlySavings.toLocaleString()}</p>
+                <p className="mobile-caption text-success">{savingsPercentage.toFixed(1)}% of income</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <PiggyBank className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card border-0">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="mobile-caption text-muted-foreground">Next EMI</p>
+                <p className="mobile-title font-bold">₹8,500</p>
+                <p className="mobile-caption text-warning">Due in 5 days</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-warning/10 flex items-center justify-center">
+                <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+          {/* Expense Breakdown */}
+          <Card className="shadow-card border-0">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 mobile-subtitle">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                Monthly Expense Breakdown
+              </CardTitle>
+              <CardDescription className="mobile-caption">Where your money is going this month</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="h-48 sm:h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={expenseData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={30}
+                        outerRadius={60}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {expenseData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Amount']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3">
+                  {expenseData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="mobile-caption font-medium">{item.name}</span>
+                      </div>
+                      <span className="mobile-caption text-muted-foreground">₹{item.value.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Trend */}
+          <Card className="shadow-card border-0">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 mobile-subtitle">
+                <Calendar className="w-5 h-5 text-primary" />
+                Income vs Expenses Trend
+              </CardTitle>
+              <CardDescription className="mobile-caption">Your financial pattern over the last 6 months</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis tickFormatter={(value) => `₹${(value/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, '']} />
+                    <Legend />
+                    <Bar dataKey="income" fill="hsl(var(--success))" name="Income" />
+                    <Bar dataKey="expense" fill="hsl(var(--danger))" name="Expense" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-6 sm:space-y-8">
+          {/* Savings Goal */}
+          
+
+          {/* AI Insights */}
+          <Card className="shadow-card border-0">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 mobile-subtitle">
+                <Bot className="w-5 h-5 text-primary" />
+                AI Money Insights
+              </CardTitle>
+              <CardDescription className="mobile-caption">Personalized tips from your AI mentor</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {aiInsights.map((insight, index) => (
+                <div key={index} className="flex gap-3 p-3 rounded-lg bg-surface/50">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    insight.type === 'warning' ? 'bg-warning/10' :
+                    insight.type === 'success' ? 'bg-success/10' : 'bg-primary/10'
+                  }`}>
+                    <insight.icon className={`w-4 h-4 ${
+                      insight.type === 'warning' ? 'text-warning' :
+                      insight.type === 'success' ? 'text-success' : 'text-primary'
+                    }`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="mobile-caption">{insight.text}</p>
+                    {insight.actionable && (
+                      <Button variant="ghost" size="sm" className="p-0 h-auto text-primary mt-2 mobile-caption">
+                        Take Action →
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

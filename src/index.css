@@ -1,0 +1,278 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dhan-Sarthi Design System - Personal Finance App */
+
+@layer base {
+  :root {
+    /* Background & Surfaces */
+    --background: 210 40% 98%;
+    --foreground: 220 25% 15%;
+    --surface: 210 30% 99%;
+    --surface-variant: 210 25% 96%;
+
+    /* Brand Colors - Modern Blue Palette */
+    --primary: 217 91% 60%;
+    --primary-light: 217 85% 75%;
+    --primary-dark: 217 95% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft Grays */
+    --secondary: 210 20% 94%;
+    --secondary-dark: 210 25% 88%;
+    --secondary-foreground: 220 20% 30%;
+
+    /* Accent Colors */
+    --success: 142 70% 45%;
+    --success-light: 142 65% 60%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-light: 38 85% 65%;
+    --warning-foreground: 0 0% 100%;
+
+    --danger: 0 85% 55%;
+    --danger-light: 0 80% 70%;
+    --danger-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 15%;
+    --card-shadow: 220 15% 35%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 15%;
+
+    --muted: 210 20% 94%;
+    --muted-foreground: 215 15% 55%;
+
+    --accent: 217 91% 96%;
+    --accent-foreground: 217 91% 25%;
+
+    --destructive: 0 85% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 25% 90%;
+    --input: 210 25% 95%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(221 83% 65%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(210 20% 94%) 0%, hsl(210 25% 98%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 70% 45%) 0%, hsl(142 65% 60%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(221 83% 65%) 50%, hsl(225 75% 70%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 2px 4px -1px hsl(var(--card-shadow) / 0.1);
+    --shadow-md: 0 4px 12px -2px hsl(var(--card-shadow) / 0.15);
+    --shadow-lg: 0 8px 25px -5px hsl(var(--card-shadow) / 0.2);
+    --shadow-xl: 0 16px 35px -8px hsl(var(--card-shadow) / 0.25);
+
+    --sidebar-background: 210 30% 99%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 210 25% 93%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 220 25% 8%;
+    --foreground: 210 40% 92%;
+    --surface: 220 25% 10%;
+    --surface-variant: 220 20% 12%;
+
+    --primary: 217 85% 65%;
+    --primary-light: 217 80% 80%;
+    --primary-dark: 217 90% 45%;
+    --primary-foreground: 220 25% 8%;
+
+    --secondary: 220 20% 15%;
+    --secondary-dark: 220 25% 12%;
+    --secondary-foreground: 210 40% 85%;
+
+    --success: 142 65% 50%;
+    --success-light: 142 60% 65%;
+    --success-foreground: 220 25% 8%;
+
+    --warning: 38 85% 55%;
+    --warning-light: 38 80% 70%;
+    --warning-foreground: 220 25% 8%;
+
+    --danger: 0 80% 60%;
+    --danger-light: 0 75% 75%;
+    --danger-foreground: 220 25% 8%;
+
+    --card: 220 25% 10%;
+    --card-foreground: 210 40% 92%;
+    --card-shadow: 220 30% 5%;
+
+    --popover: 220 25% 10%;
+    --popover-foreground: 210 40% 92%;
+
+    --muted: 220 20% 15%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 217 91% 15%;
+    --accent-foreground: 217 85% 80%;
+
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 220 25% 8%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 18%;
+    --ring: 217 85% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Hero Gradient Background */
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+
+  /* Card Styles */
+  .card-elevated {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .card-floating {
+    box-shadow: var(--shadow-xl);
+  }
+
+  /* Button Variants */
+  .btn-gradient {
+    background: var(--gradient-primary);
+  }
+
+  .btn-success {
+    background: var(--gradient-success);
+  }
+
+  /* Animations */
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  /* Mobile Responsive Utilities */
+  .mobile-container {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+  }
+
+  .mobile-flex {
+    @apply flex flex-col sm:flex-row gap-4 sm:gap-6;
+  }
+
+  .mobile-text {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .mobile-heading {
+    @apply text-xl sm:text-2xl lg:text-3xl xl:text-4xl;
+  }
+}
+
+@layer utilities {
+  /* Text Gradients */
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Custom Shadows */
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-float {
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Mobile Responsive Spacing */
+  .mobile-padding {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  .mobile-margin {
+    @apply m-4 sm:m-6 lg:m-8;
+  }
+
+  /* Mobile Responsive Typography */
+  .mobile-title {
+    @apply text-lg sm:text-xl lg:text-2xl font-semibold;
+  }
+
+  .mobile-subtitle {
+    @apply text-base sm:text-lg lg:text-xl font-medium;
+  }
+
+  .mobile-body {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .mobile-caption {
+    @apply text-xs sm:text-sm lg:text-base;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
