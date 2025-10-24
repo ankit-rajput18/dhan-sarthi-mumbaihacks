@@ -3,28 +3,41 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { PiggyBank, Mail, Lock, Chrome } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { PiggyBank, Mail, Lock } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { loginUser } from "@/lib/auth"; // Make sure this exists
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || "/dashboard";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle login form submission
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login:", { email, password });
-    // Redirect to dashboard after successful login
-    navigate("/dashboard");
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await loginUser(email, password);
+      console.log("Login success:", data);
+      // Redirect after login
+      navigate(from, { replace: true });
+    } catch (err: any) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Placeholder Google login
   const handleGoogleLogin = () => {
-    // Handle Google login logic here
-    console.log("Google login");
-    // Redirect to dashboard after successful login
-    navigate("/dashboard");
+    console.log("Google login clicked");
+    alert("Google login not implemented yet");
   };
 
   return (
@@ -49,27 +62,14 @@ const Login = () => {
               Enter your credentials to access your financial dashboard
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Google Sign In */}
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleGoogleLogin}
-            >
-              <Chrome className="w-4 h-4 mr-2" />
-              Continue with Google
-            </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
+          <CardContent className="space-y-4">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                {error}
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with email
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,8 +114,8 @@ const Login = () => {
                 </Link>
               </div>
 
-              <Button type="submit" variant="hero" className="w-full">
-                Sign In
+              <Button type="submit" variant="hero" className="w-full" disabled={loading}>
+                {loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
 

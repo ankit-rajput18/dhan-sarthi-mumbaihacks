@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { transactionAPI, goalsAPI } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,8 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import TransactionManager from "@/components/TransactionManager";
+import { Toaster } from "@/components/ui/sonner";
 
 const SmartPlanner = () => {
   const [showAddGoal, setShowAddGoal] = useState(false);
@@ -827,6 +830,10 @@ const SmartPlanner = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Transaction Manager */}
+      <TransactionManager />
+      <Toaster />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -53,6 +53,9 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { loanAPI, transactionAPI } from "@/lib/api";
+import { toast } from "sonner";
+import { Edit, Trash2 } from "lucide-react";
 
 const LoanAnalyzer = () => {
   const [showAddLoan, setShowAddLoan] = useState(false);
@@ -62,6 +65,7 @@ const LoanAnalyzer = () => {
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [loanData, setLoanData] = useState({
     type: "",
+    name: "",
     principal: "",
     interestRate: "",
     tenure: "",
@@ -74,154 +78,183 @@ const LoanAnalyzer = () => {
     notes: "",
   });
 
-  // Mock loan data with enhanced details
-  const loans = [
-    {
-      id: 1,
-      name: "Home Loan",
-      type: "home",
-      principal: 2500000,
-      remainingBalance: 2100000,
-      emiAmount: 18500,
-      interestRate: 8.5,
-      tenure: 240,
-      remainingTenure: 198,
-      startDate: "2020-03-15",
-      nextDueDate: "2024-01-15",
-      icon: Home,
-      color: "bg-blue-500",
-      penaltyRate: 2, // 2% penalty on overdue amount
-      terms: [
-        "Late payment penalty: 2% of overdue amount",
-        "Prepayment charges: 2% of prepaid amount (after 12 months)",
-        "Insurance coverage mandatory for first 5 years",
-        "Property documents to be submitted within 30 days",
-      ],
-      paymentHistory: [
-        {
-          id: 1,
-          date: "2024-01-15",
-          amount: 18500,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-        {
-          id: 2,
-          date: "2023-12-15",
-          amount: 18500,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-        {
-          id: 3,
-          date: "2023-11-15",
-          amount: 18500,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Car Loan",
-      type: "vehicle",
-      principal: 800000,
-      remainingBalance: 320000,
-      emiAmount: 15200,
-      interestRate: 9.2,
-      tenure: 60,
-      remainingTenure: 18,
-      startDate: "2022-06-10",
-      nextDueDate: "2024-01-10",
-      icon: Car,
-      color: "bg-purple-500",
-      penaltyRate: 1.5,
-      terms: [
-        "Late payment penalty: 1.5% of overdue amount",
-        "Prepayment charges: 3% of prepaid amount",
-        "Vehicle insurance mandatory throughout loan tenure",
-        "Vehicle registration papers to be submitted",
-      ],
-      paymentHistory: [
-        {
-          id: 1,
-          date: "2024-01-10",
-          amount: 15200,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-        {
-          id: 2,
-          date: "2023-12-10",
-          amount: 15200,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Personal Loan",
-      type: "personal",
-      principal: 300000,
-      remainingBalance: 180000,
-      emiAmount: 8500,
-      interestRate: 12.5,
-      tenure: 48,
-      remainingTenure: 24,
-      startDate: "2023-01-20",
-      nextDueDate: "2024-01-20",
-      icon: CreditCard,
-      color: "bg-orange-500",
-      penaltyRate: 3,
-      terms: [
-        "Late payment penalty: 3% of overdue amount",
-        "Prepayment charges: 4% of prepaid amount",
-        "Processing fee: 1% of loan amount",
-        "No security required",
-      ],
-      paymentHistory: [
-        {
-          id: 1,
-          date: "2024-01-20",
-          amount: 8500,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-        {
-          id: 2,
-          date: "2023-12-20",
-          amount: 8500,
-          status: "paid",
-          notes: "Regular EMI payment",
-        },
-      ],
-    },
-  ];
+  const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
 
-  const totalEMI = loans.reduce((sum, loan) => sum + loan.emiAmount, 0);
-  const monthlyIncome = 85000;
-  const emiToIncomeRatio = (totalEMI / monthlyIncome) * 100;
+  const [loans, setLoans] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadLoans = async () => {
+      try {
+        const res = await loanAPI.getAll({ page: 1, limit: 50 });
+        const mapped = (res.loans || []).map((l: any) => ({
+          id: l._id,
+          name: l.loanName,
+          type: l.loanType,
+          principal: l.principalAmount,
+          remainingBalance: l.remainingBalance,
+          emiAmount: l.emiAmount,
+          interestRate: l.interestRate,
+          tenure: l.tenureMonths,
+          totalInterest: l.totalInterest,
+          remainingTenure: Math.max(0, Math.ceil((new Date(l.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))),
+          startDate: l.startDate,
+          nextDueDate: l.nextEmiDate,
+          icon: l.loanType === 'home' ? Home : l.loanType === 'car' ? Car : CreditCard,
+          color: l.loanType === 'home' ? 'bg-blue-500' : l.loanType === 'car' ? 'bg-purple-500' : 'bg-orange-500',
+          penaltyRate: 0,
+          terms: [],
+          paymentHistory: (l.payments || []).map((p: any, idx: number) => ({
+            id: idx + 1,
+            date: p.paymentDate,
+            amount: p.amount,
+            status: 'paid',
+            notes: p.notes || ''
+          }))
+        }));
+        setLoans(mapped);
+      } catch (e: any) {
+        toast.error(e?.message || 'Failed to load loans');
+      }
+    };
+    loadLoans();
+  }, []);
+
+  const totalEMI = useMemo(() => loans.reduce((sum, loan) => sum + (loan.emiAmount || 0), 0), [loans]);
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
+  const emiToIncomeRatio = (totalEMI / (monthlyIncome || 1)) * 100;
+
+  useEffect(() => {
+    const loadIncome = async () => {
+      try {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+        const tx = await transactionAPI.getSummary(start, end);
+        setMonthlyIncome(tx?.summary?.totalIncome || 0);
+      } catch {
+        // keep default 0 on failure
+      }
+    };
+    loadIncome();
+  }, []);
 
   const loanTypes = [
     { value: "home", label: "Home Loan" },
-    { value: "vehicle", label: "Vehicle Loan" },
+    { value: "car", label: "Vehicle Loan" },
     { value: "personal", label: "Personal Loan" },
     { value: "education", label: "Education Loan" },
     { value: "business", label: "Business Loan" },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("New loan:", loanData);
-    setShowAddLoan(false);
+    try {
+      const payload = {
+        loanType: loanData.type as any,
+        loanName: (loanData.name && loanData.name.trim()) ? loanData.name.trim() : (loanData.type ? `${loanData.type[0].toUpperCase()+loanData.type.slice(1)} Loan` : 'Loan'),
+        principalAmount: parseFloat(loanData.principal),
+        interestRate: parseFloat(loanData.interestRate),
+        tenureMonths: parseInt(loanData.tenure, 10),
+        lender: 'Unknown',
+        startDate: new Date(loanData.startDate).toISOString(),
+      };
+      if (!payload.loanType || isNaN(payload.principalAmount) || isNaN(payload.interestRate) || isNaN(payload.tenureMonths)) {
+        toast.error('Please fill all required fields');
+        return;
+      }
+      if (editingLoanId) {
+        await loanAPI.update(editingLoanId, {
+          loanType: payload.loanType as any,
+          loanName: payload.loanName,
+          principalAmount: payload.principalAmount,
+          interestRate: payload.interestRate,
+          tenureMonths: payload.tenureMonths,
+          startDate: payload.startDate,
+        } as any);
+        toast.success('Loan updated');
+      } else {
+        await loanAPI.create(payload as any);
+        toast.success('Loan created');
+      }
+      setShowAddLoan(false);
+      setLoanData({
+        type: "",
+        name: "",
+        principal: "",
+        interestRate: "",
+        tenure: "",
+        startDate: new Date().toISOString().split("T")[0],
+      });
+      setEditingLoanId(null);
+      // reload
+      const res = await loanAPI.getAll({ page: 1, limit: 50 });
+      const mapped = (res.loans || []).map((l: any) => ({
+        id: l._id,
+        name: l.loanName,
+        type: l.loanType,
+        principal: l.principalAmount,
+        remainingBalance: l.remainingBalance,
+        emiAmount: l.emiAmount,
+        interestRate: l.interestRate,
+        tenure: l.tenureMonths,
+        totalInterest: l.totalInterest,
+        remainingTenure: Math.max(0, Math.ceil((new Date(l.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))),
+        startDate: l.startDate,
+        nextDueDate: l.nextEmiDate,
+        icon: l.loanType === 'home' ? Home : l.loanType === 'car' ? Car : CreditCard,
+        color: l.loanType === 'home' ? 'bg-blue-500' : l.loanType === 'car' ? 'bg-purple-500' : 'bg-orange-500',
+        penaltyRate: 0,
+        terms: [],
+        paymentHistory: (l.payments || []).map((p: any, idx: number) => ({ id: idx + 1, date: p.paymentDate, amount: p.amount, status: 'paid', notes: p.notes || '' }))
+      }));
+      setLoans(mapped);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create loan');
+    }
+  };
+
+  const openEditLoan = (loan: any) => {
+    setEditingLoanId(loan.id);
     setLoanData({
-      type: "",
-      principal: "",
-      interestRate: "",
-      tenure: "",
-      startDate: new Date().toISOString().split("T")[0],
+      type: loan.type,
+      name: loan.name || '',
+      principal: String(loan.principal),
+      interestRate: String(loan.interestRate),
+      tenure: String(loan.tenure),
+      startDate: new Date(loan.startDate).toISOString().split('T')[0],
     });
+    setShowAddLoan(true);
+  };
+
+  const deleteLoan = async (id: string) => {
+    if (!confirm('Delete this loan?')) return;
+    try {
+      await loanAPI.delete(id);
+      toast.success('Loan deleted');
+      const res = await loanAPI.getAll({ page: 1, limit: 50 });
+      const mapped = (res.loans || []).map((l: any) => ({
+        id: l._id,
+        name: l.loanName,
+        type: l.loanType,
+        principal: l.principalAmount,
+        remainingBalance: l.remainingBalance,
+        emiAmount: l.emiAmount,
+        interestRate: l.interestRate,
+        tenure: l.tenureMonths,
+        totalInterest: l.totalInterest,
+        remainingTenure: Math.max(0, Math.ceil((new Date(l.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))),
+        startDate: l.startDate,
+        nextDueDate: l.nextEmiDate,
+        icon: l.loanType === 'home' ? Home : l.loanType === 'car' ? Car : CreditCard,
+        color: l.loanType === 'home' ? 'bg-blue-500' : l.loanType === 'car' ? 'bg-purple-500' : 'bg-orange-500',
+        penaltyRate: 0,
+        terms: [],
+        paymentHistory: (l.payments || []).map((p: any, idx: number) => ({ id: idx + 1, date: p.paymentDate, amount: p.amount, status: 'paid', notes: p.notes || '' }))
+      }));
+      setLoans(mapped);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete loan');
+    }
   };
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
@@ -238,6 +271,7 @@ const LoanAnalyzer = () => {
   const resetForm = () => {
     setLoanData({
       type: "",
+      name: "",
       principal: "",
       interestRate: "",
       tenure: "",
@@ -317,6 +351,16 @@ const LoanAnalyzer = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="name">Loan Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., Car Loan"
+                    value={loanData.name}
+                    onChange={(e) => setLoanData((p) => ({ ...p, name: e.target.value }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -592,19 +636,9 @@ const LoanAnalyzer = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Interest
-                  </p>
+                  <p className="text-sm text-muted-foreground">Total Interest</p>
                   <p className="font-semibold text-lg">
-                    ₹
-                    {(
-                      calculateTotalInterest(
-                        loan.principal,
-                        loan.interestRate,
-                        loan.tenure
-                      ) / 100000
-                    ).toFixed(1)}
-                    L
+                    ₹{((loan.totalInterest ?? calculateTotalInterest(loan.principal, loan.interestRate, loan.tenure)) / 100000).toFixed(1)}L
                   </p>
                 </div>
               </div>
@@ -632,7 +666,6 @@ const LoanAnalyzer = () => {
               </div>
 
               <div className="flex gap-2 mt-4">
-                
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -653,6 +686,21 @@ const LoanAnalyzer = () => {
                 >
                   <FileText className="w-4 h-4 mr-1" />
                   Logs
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditLoan(loan)}
+                >
+                  <Edit className="w-4 h-4 mr-1" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600"
+                  onClick={() => deleteLoan(loan.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" /> Delete
                 </Button>
               </div>
             </CardContent>

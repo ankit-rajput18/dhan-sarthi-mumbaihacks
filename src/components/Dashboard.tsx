@@ -18,9 +18,88 @@ import {
   Lightbulb
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { getAuthUser } from '@/lib/auth';
+import { useEffect, useMemo, useState } from 'react';
+import { transactionAPI, loanAPI } from '@/lib/api';
 
 const Dashboard = () => {
-  // Dummy data for charts
+  // Get current user
+  const user = getAuthUser();
+  const userName = user?.name || 'User';
+
+  // Dynamic top-cards data
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
+  const [totalExpenses, setTotalExpenses] = useState<number>(0);
+  const [nextEmiAmount, setNextEmiAmount] = useState<number>(0);
+  const [nextEmiDueInDays, setNextEmiDueInDays] = useState<number | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // This month range
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+
+        // Transactions summary for this month
+        const tx = await transactionAPI.getSummary(start, end);
+        const income = tx?.summary?.totalIncome || 0;
+        const expense = tx?.summary?.totalExpenses || 0;
+        setMonthlyIncome(income);
+        setTotalExpenses(expense);
+
+        // Upcoming EMIs (with fallback if summary endpoint not available)
+        try {
+          const loans = await loanAPI.getUpcomingEMIs(60);
+          const upcoming = (loans?.upcomingEmis || []).filter((e: any) => e.daysUntilDue >= 0);
+          if (upcoming.length > 0) {
+            const soonest = upcoming.sort((a: any, b: any) => a.daysUntilDue - b.daysUntilDue)[0];
+            setNextEmiAmount(soonest.nextEmiAmount || 0);
+            setNextEmiDueInDays(soonest.daysUntilDue ?? null);
+          } else {
+            throw new Error('No upcoming from summary');
+          }
+        } catch {
+          // Fallback: fetch active loans and compute next EMI
+          try {
+            const list = await loanAPI.getAll({ status: 'active', limit: 100 });
+            const items = (list?.loans || [])
+              .map((l: any) => ({
+                date: new Date(l.nextEmiDate),
+                amount: l.nextEmiAmount || l.emiAmount || 0,
+              }))
+              .filter((x: any) => isFinite(x.date.getTime()));
+            const future = items
+              .map((x: any) => ({ ...x, days: Math.ceil((x.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) }))
+              .filter((x: any) => x.days >= 0);
+            if (future.length > 0) {
+              const soonest = future.sort((a: any, b: any) => a.days - b.days)[0];
+              setNextEmiAmount(soonest.amount || 0);
+              setNextEmiDueInDays(soonest.days);
+            } else if (items.length > 0) {
+              // if all are overdue, show the most recent overdue
+              const overdue = items
+                .map((x: any) => ({ ...x, days: Math.ceil((x.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) }))
+                .sort((a: any, b: any) => a.days - b.days)[0];
+              setNextEmiAmount(overdue.amount || 0);
+              setNextEmiDueInDays(overdue.days);
+            } else {
+              setNextEmiAmount(0);
+              setNextEmiDueInDays(null);
+            }
+          } catch {
+            setNextEmiAmount(0);
+            setNextEmiDueInDays(null);
+          }
+        }
+      } catch (e) {
+        // Leave defaults if API fails
+      }
+    };
+    loadData();
+  }, []);
+
+  // Dummy data for charts (kept as-is for visuals)
   const expenseData = [
     { name: 'Food', value: 8500, color: '#ef4444' },
     { name: 'Transport', value: 3200, color: '#f97316' },
@@ -38,8 +117,6 @@ const Dashboard = () => {
     { month: 'Jun', income: 45000, expense: 33000 },
   ];
 
-  const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);
-  const monthlyIncome = 45000;
   const monthlySavings = monthlyIncome - totalExpenses;
   const savingsPercentage = (monthlySavings / monthlyIncome) * 100;
 
@@ -68,7 +145,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Greeting */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="mobile-heading font-bold mb-2">Hi Ankit 👋</h1>
+        <h1 className="mobile-heading font-bold mb-2">Hi {userName} 👋</h1>
         <p className="mobile-body text-muted-foreground">Keep up the great work with your financial goals!</p>
       </div>
 
@@ -122,8 +199,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="mobile-caption text-muted-foreground">Next EMI</p>
-                <p className="mobile-title font-bold">₹8,500</p>
-                <p className="mobile-caption text-warning">Due in 5 days</p>
+                <p className="mobile-title font-bold">₹{nextEmiAmount.toLocaleString()}</p>
+                <p className="mobile-caption text-warning">{nextEmiDueInDays !== null ? `Due in ${nextEmiDueInDays} days` : 'No upcoming EMIs'}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-warning/10 flex items-center justify-center">
                 <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />

@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { PiggyBank, User, Mail, Lock, Chrome } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { PiggyBank, User, Mail, Lock } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { registerUser } from "@/lib/auth";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -15,21 +15,25 @@ const Signup = () => {
     password: "",
     ageGroup: ""
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || "/dashboard";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signup logic here
-    console.log("Signup:", formData);
-    // Redirect to dashboard after successful signup
-    navigate("/dashboard");
-  };
+    setLoading(true);
+    setError("");
 
-  const handleGoogleSignup = () => {
-    // Handle Google signup logic here
-    console.log("Google signup");
-    // Redirect to dashboard after successful signup
-    navigate("/dashboard");
+    try {
+      await registerUser(formData.name, formData.email, formData.password, formData.ageGroup);
+      navigate(from, { replace: true });
+    } catch (err: any) {
+      setError(err.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -62,26 +66,12 @@ const Signup = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Google Sign Up */}
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleGoogleSignup}
-            >
-              <Chrome className="w-4 h-4 mr-2" />
-              Continue with Google
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                {error}
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or create with email
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Signup Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -147,8 +137,8 @@ const Signup = () => {
                 </Select>
               </div>
 
-              <Button type="submit" variant="hero" className="w-full">
-                Create Account
+              <Button type="submit" variant="hero" className="w-full" disabled={loading}>
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
 

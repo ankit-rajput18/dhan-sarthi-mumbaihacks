@@ -1,15 +1,23 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, Search, Settings } from "lucide-react";
+import { Bell, Search, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "@/lib/auth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate("/login", { replace: true });
+  };
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -47,6 +55,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Button>
               <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
                 <Settings className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout} className="hidden sm:inline-flex">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleLogout} className="sm:hidden h-8 w-8 p-0">
+                <LogOut className="w-4 h-4" />
               </Button>
             </div>
           </header>
