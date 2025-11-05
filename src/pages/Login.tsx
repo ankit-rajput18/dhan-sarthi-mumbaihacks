@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PiggyBank, Mail, Lock } from "lucide-react";
+import { PiggyBank, Mail, Lock, Copy, Check } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginUser } from "@/lib/auth"; // Make sure this exists
 
@@ -12,6 +12,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || "/dashboard";
@@ -32,6 +33,19 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to fill in the default credentials
+  const fillDefaultCredentials = () => {
+    setEmail("vebs@email.com");
+    setPassword("123456");
+  };
+
+  // Function to copy text to clipboard
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   // Placeholder Google login
@@ -118,6 +132,79 @@ const Login = () => {
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
+
+            {/* Default Credentials Section */}
+            <div className="mt-6 pt-4 border-t border-muted">
+              <div className="flex items-center justify-center mb-3">
+                <div className="bg-primary/10 p-2 rounded-full mr-2">
+                  <PiggyBank className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold">Quick Access</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4 text-center">
+                For demo purposes - click to copy or auto-fill
+              </p>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3 transition-all hover:bg-muted">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-mono text-sm">vebs@email.com</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      onClick={() => copyToClipboard("vebs@email.com", "email")}
+                    >
+                      {copiedField === "email" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setEmail("vebs@email.com")}
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3 transition-all hover:bg-muted">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Password</p>
+                    <p className="font-mono text-sm">123456</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      onClick={() => copyToClipboard("123456", "password")}
+                    >
+                      {copiedField === "password" ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setPassword("123456")}
+                    >
+                      <Lock className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={fillDefaultCredentials}
+                variant="default" 
+                className="w-full mt-4"
+              >
+                Auto-Fill Demo Credentials
+              </Button>
+            </div>
 
             <div className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
