@@ -63,6 +63,193 @@ router.get('/', [
   }
 });
 
+// IMPORTANT: All specific routes must come BEFORE /:id route to avoid conflicts
+
+// @route   POST /api/loans/calculate-emi
+// @desc    Calculate EMI for given parameters
+// @access  Private
+router.post('/calculate-emi', [
+  auth,
+  body('principalAmount').isFloat({ min: 0 }).withMessage('Principal amount must be positive'),
+  body('interestRate').isFloat({ min: 0, max: 100 }).withMessage('Interest rate must be between 0 and 100'),
+  body('tenureMonths').isInt({ min: 1, max: 600 }).withMessage('Tenure must be between 1 and 600 months')
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { principalAmount, interestRate, tenureMonths } = req.body;
+
+    // Calculate EMI
+    const monthlyRate = interestRate / (12 * 100);
+    let emiAmount;
+    
+    if (monthlyRate === 0) {
+      emiAmount = principalAmount / tenureMonths;
+    } else {
+      emiAmount = (principalAmount * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) / 
+                  (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+    }
+
+    const totalAmount = emiAmount * tenureMonths;
+    const totalInterest = totalAmount - principalAmount;
+
+    res.json({
+      principalAmount,
+      interestRate,
+      tenureMonths,
+      emiAmount: Math.round(emiAmount),
+      totalAmount: Math.round(totalAmount),
+      totalInterest: Math.round(totalInterest)
+    });
+
+  } catch (error) {
+    console.error('Calculate EMI error:', error);
+    res.status(500).json({ message: 'Server error while calculating EMI' });
+  }
+});
+
+// @route   GET /api/loans/stats/summary
+// @desc    Get loan summary statistics
+// @access  Private
+router.get('/stats/summary', [
+  auth,
+  query('status').optional().isIn(['active', 'completed', 'defaulted', 'prepaid']).withMessage('Invalid status')
+], async (req, res) => {
+  try {
+    const { status } = req.query;
+    const userId = req.user._id;
+
+    // Build filter object
+    const filter = { user: userId };
+    if (status) filter.status = status;
+
+    // Get loan statistics
+    const [loanStats, typeStats, statusStats] = await Promise.all([
+      Loan.aggregate([
+        { $match: filter },
+        { $group: {
+          _id: null,
+          totalLoans: { $sum: 1 },
+          totalPrincipal: { $sum: '$principalAmount' },
+          totalRemaining: { $sum: '$remainingBalance' },
+          totalPaid: { $sum: '$totalPaid' },
+          totalInterest: { $sum: '$totalInterest' },
+          avgInterestRate: { $avg: '$interestRate' }
+        }}
+      ]),
+      Loan.aggregate([
+        { $match: filter },
+        { $group: {
+          _id: '$loanType',
+          count: { $sum: 1 },
+          totalPrincipal: { $sum: '$principalAmount' },
+          totalRemaining: { $sum: '$remainingBalance' }
+        }},
+        { $sort: { totalPrincipal: -1 } }
+      ]),
+      Loan.aggregate([
+        { $match: filter },
+        { $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalPrincipal: { $sum: '$principalAmount' },
+          totalRemaining: { $sum: '$remainingBalance' }
+        }}
+      ])
+    ]);
+
+    const stats = loanStats[0] || {
+      totalLoans: 0,
+      totalPrincipal: 0,
+      totalRemaining: 0,
+      totalPaid: 0,
+      totalInterest: 0,
+      avgInterestRate: 0
+    };
+
+    res.json({
+      summary: {
+        totalLoans: stats.totalLoans,
+        totalPrincipal: stats.totalPrincipal,
+        totalRemaining: stats.totalRemaining,
+        totalPaid: stats.totalPaid,
+        totalInterest: stats.totalInterest,
+        avgInterestRate: Math.round(stats.avgInterestRate * 100) / 100
+      },
+      typeBreakdown: typeStats,
+      statusBreakdown: statusStats
+    });
+
+  } catch (error) {
+    console.error('Get loan stats error:', error);
+    res.status(500).json({ message: 'Server error while fetching loan statistics' });
+  }
+});
+
+// @route   GET /api/loans/upcoming-emis
+// @desc    Get upcoming EMIs for all active loans
+// @access  Private
+router.get('/upcoming-emis', [
+  auth,
+  query('days').optional().isInt({ min: 1, max: 365 }).withMessage('Days must be between 1 and 365')
+], async (req, res) => {
+  try {
+    // Validate request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { days = 30 } = req.query;
+    const userId = req.user._id;
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + parseInt(days));
+
+    const loans = await Loan.find({
+      user: userId,
+      status: 'active',
+      nextEmiDate: { $exists: true, $lte: futureDate }
+    }).sort({ nextEmiDate: 1 });
+
+    const upcomingEmis = loans.map(loan => {
+      const nextEmiDate = loan.nextEmiDate ? new Date(loan.nextEmiDate) : null;
+      const daysUntilDue = nextEmiDate ? Math.ceil((nextEmiDate - today) / (1000 * 60 * 60 * 24)) : 0;
+      
+      return {
+        loanId: loan._id,
+        loanName: loan.loanName || 'Unnamed Loan',
+        loanType: loan.loanType,
+        lender: loan.lender,
+        nextEmiDate: nextEmiDate,
+        nextEmiAmount: loan.nextEmiAmount || 0,
+        daysUntilDue: daysUntilDue,
+        remainingBalance: loan.remainingBalance || 0
+      };
+    });
+
+    res.json({
+      upcomingEmis,
+      totalAmount: upcomingEmis.reduce((sum, emi) => sum + (emi.nextEmiAmount || 0), 0)
+    });
+
+  } catch (error) {
+    console.error('Get upcoming EMIs error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error while fetching upcoming EMIs',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // @route   GET /api/loans/:id
 // @desc    Get single loan
 // @access  Private
@@ -421,186 +608,6 @@ router.get('/:id/payments', auth, async (req, res) => {
   } catch (error) {
     console.error('Get payments error:', error);
     res.status(500).json({ message: 'Server error while fetching payments' });
-  }
-});
-
-// @route   POST /api/loans/calculate-emi
-// @desc    Calculate EMI for given parameters
-// @access  Private
-router.post('/calculate-emi', [
-  auth,
-  body('principalAmount').isFloat({ min: 0 }).withMessage('Principal amount must be positive'),
-  body('interestRate').isFloat({ min: 0, max: 100 }).withMessage('Interest rate must be between 0 and 100'),
-  body('tenureMonths').isInt({ min: 1, max: 600 }).withMessage('Tenure must be between 1 and 600 months')
-], async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-
-    const { principalAmount, interestRate, tenureMonths } = req.body;
-
-    // Calculate EMI
-    const monthlyRate = interestRate / (12 * 100);
-    let emiAmount;
-    
-    if (monthlyRate === 0) {
-      emiAmount = principalAmount / tenureMonths;
-    } else {
-      emiAmount = (principalAmount * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) / 
-                  (Math.pow(1 + monthlyRate, tenureMonths) - 1);
-    }
-
-    const totalAmount = emiAmount * tenureMonths;
-    const totalInterest = totalAmount - principalAmount;
-
-    res.json({
-      principalAmount,
-      interestRate,
-      tenureMonths,
-      emiAmount: Math.round(emiAmount),
-      totalAmount: Math.round(totalAmount),
-      totalInterest: Math.round(totalInterest)
-    });
-
-  } catch (error) {
-    console.error('Calculate EMI error:', error);
-    res.status(500).json({ message: 'Server error while calculating EMI' });
-  }
-});
-
-// @route   GET /api/loans/stats/summary
-// @desc    Get loan summary statistics
-// @access  Private
-router.get('/stats/summary', [
-  auth,
-  query('status').optional().isIn(['active', 'completed', 'defaulted', 'prepaid']).withMessage('Invalid status')
-], async (req, res) => {
-  try {
-    const { status } = req.query;
-    const userId = req.user._id;
-
-    // Build filter object
-    const filter = { user: userId };
-    if (status) filter.status = status;
-
-    // Get loan statistics
-    const [loanStats, typeStats, statusStats] = await Promise.all([
-      Loan.aggregate([
-        { $match: filter },
-        { $group: {
-          _id: null,
-          totalLoans: { $sum: 1 },
-          totalPrincipal: { $sum: '$principalAmount' },
-          totalRemaining: { $sum: '$remainingBalance' },
-          totalPaid: { $sum: '$totalPaid' },
-          totalInterest: { $sum: '$totalInterest' },
-          avgInterestRate: { $avg: '$interestRate' }
-        }}
-      ]),
-      Loan.aggregate([
-        { $match: filter },
-        { $group: {
-          _id: '$loanType',
-          count: { $sum: 1 },
-          totalPrincipal: { $sum: '$principalAmount' },
-          totalRemaining: { $sum: '$remainingBalance' }
-        }},
-        { $sort: { totalPrincipal: -1 } }
-      ]),
-      Loan.aggregate([
-        { $match: filter },
-        { $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalPrincipal: { $sum: '$principalAmount' },
-          totalRemaining: { $sum: '$remainingBalance' }
-        }}
-      ])
-    ]);
-
-    const stats = loanStats[0] || {
-      totalLoans: 0,
-      totalPrincipal: 0,
-      totalRemaining: 0,
-      totalPaid: 0,
-      totalInterest: 0,
-      avgInterestRate: 0
-    };
-
-    res.json({
-      summary: {
-        totalLoans: stats.totalLoans,
-        totalPrincipal: stats.totalPrincipal,
-        totalRemaining: stats.totalRemaining,
-        totalPaid: stats.totalPaid,
-        totalInterest: stats.totalInterest,
-        avgInterestRate: Math.round(stats.avgInterestRate * 100) / 100
-      },
-      typeBreakdown: typeStats,
-      statusBreakdown: statusStats
-    });
-
-  } catch (error) {
-    console.error('Get loan stats error:', error);
-    res.status(500).json({ message: 'Server error while fetching loan statistics' });
-  }
-});
-
-// @route   GET /api/loans/upcoming-emis
-// @desc    Get upcoming EMIs for all active loans
-// @access  Private
-router.get('/upcoming-emis', [
-  auth,
-  query('days').optional().isInt({ min: 1, max: 365 }).withMessage('Days must be between 1 and 365')
-], async (req, res) => {
-  try {
-    // Validate request
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { days = 30 } = req.query;
-    const userId = req.user._id;
-    const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(today.getDate() + parseInt(days));
-
-    const loans = await Loan.find({
-      user: userId,
-      status: 'active',
-      nextEmiDate: { $lte: futureDate }
-    }).sort({ nextEmiDate: 1 });
-
-    const upcomingEmis = loans.map(loan => ({
-      loanId: loan._id,
-      loanName: loan.loanName || 'Unnamed Loan',
-      loanType: loan.loanType,
-      lender: loan.lender,
-      nextEmiDate: loan.nextEmiDate,
-      nextEmiAmount: loan.nextEmiAmount || 0,
-      daysUntilDue: Math.ceil((loan.nextEmiDate - today) / (1000 * 60 * 60 * 24)),
-      remainingBalance: loan.remainingBalance || 0
-    }));
-
-    res.json({
-      upcomingEmis,
-      totalAmount: upcomingEmis.reduce((sum, emi) => sum + (emi.nextEmiAmount || 0), 0)
-    });
-
-  } catch (error) {
-    console.error('Get upcoming EMIs error:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      message: 'Server error while fetching upcoming EMIs',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
   }
 });
 

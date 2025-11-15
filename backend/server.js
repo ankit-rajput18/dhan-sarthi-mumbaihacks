@@ -20,27 +20,40 @@ const corsOptions = {
       'http://localhost:8080',
       'http://localhost:5173',
       'http://localhost:5001',
+      'http://localhost:10000',
+      'https://dhan-sarthi-ai.vercel.app',
       process.env.FRONTEND_URL,
       process.env.VERCEL_URL
     ].filter(Boolean); // Remove any undefined values
     
-    // Always allow vercel.app domains
-    if (origin && origin.includes('.vercel.app')) {
+    // Always allow vercel.app and render.com domains
+    if (origin && (origin.includes('.vercel.app') || origin.includes('.render.com'))) {
       return callback(null, true);
     }
     
     // Check if the origin is in our allowed list
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return callback(null, true);
     }
+    
+    // Log rejected origins in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('CORS rejected origin:', origin);
+    }
+    
+    callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600
 };
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(morgan('combined'));
 app.use(cors(corsOptions));
 app.use(express.json());
