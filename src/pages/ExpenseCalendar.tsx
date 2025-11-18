@@ -205,7 +205,7 @@ const ExpenseCalendar = () => {
         const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
         
         const response = await budgetAPI.getByMonth(year, month);
-        if (response.budget) {
+        if (response && response.budget) {
           // Update budgetData with values from API
           const updatedBudgetData = budgetData.map(category => {
             const budgetCategory = response.budget.categories.find((c: any) => c.name === category.category);

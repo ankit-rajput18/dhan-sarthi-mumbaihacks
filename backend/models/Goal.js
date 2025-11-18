@@ -63,6 +63,32 @@ const goalSchema = new mongoose.Schema({
   tags: [{
     type: String,
     trim: true
+  }],
+  // Notification tracking
+  lastNotifiedMilestone: {
+    type: Number,
+    default: 0
+  },
+  // Contribution history
+  contributions: [{
+    amount: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    date: {
+      type: Date,
+      required: true
+    },
+    note: {
+      type: String,
+      trim: true,
+      maxlength: 200
+    },
+    allocatedAt: {
+      type: Date,
+      default: Date.now
+    }
   }]
 }, {
   timestamps: true
@@ -127,6 +153,29 @@ goalSchema.pre('save', function(next) {
 // Method to update current amount
 goalSchema.methods.updateCurrentAmount = function(amount) {
   this.currentAmount = Math.max(0, amount);
+  this.progressPercentage = this.calculateProgress();
+  this.monthlySavingsTarget = this.calculateMonthlySavings();
+  
+  // Update status if goal is completed
+  if (this.currentAmount >= this.targetAmount) {
+    this.status = 'completed';
+  }
+  
+  return this.save();
+};
+
+// Method to add contribution
+goalSchema.methods.addContribution = function(amount, date, note) {
+  // Add to contributions array
+  this.contributions.push({
+    amount,
+    date: date || new Date(),
+    note: note || '',
+    allocatedAt: new Date()
+  });
+  
+  // Update current amount
+  this.currentAmount += amount;
   this.progressPercentage = this.calculateProgress();
   this.monthlySavingsTarget = this.calculateMonthlySavings();
   

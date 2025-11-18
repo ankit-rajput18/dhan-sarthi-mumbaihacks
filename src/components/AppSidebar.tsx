@@ -5,8 +5,10 @@ import {
   Shield, 
   Calendar, 
   Bot,
+  Brain,
   PiggyBank,
-  User
+  User,
+  Receipt
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { getAuthUser } from '@/lib/auth';
@@ -28,11 +30,13 @@ import {
 
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Calendar", url: "/calendar", icon: Calendar },
+  { title: "Transactions", url: "/transactions", icon: Receipt },
   { title: "Smart Planner", url: "/planner", icon: Target },
   { title: "Loan Analyzer", url: "/loans", icon: Calculator },
   { title: "Tax Tips", url: "/tax-tips", icon: Shield },
-  { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "AI Mentor", url: "/ai-mentor", icon: Bot },
+  // Memory works behind the scenes - no UI needed
 ];
 
 export function AppSidebar() {

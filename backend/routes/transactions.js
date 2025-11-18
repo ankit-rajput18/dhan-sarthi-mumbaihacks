@@ -2,6 +2,8 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
+const notificationService = require('../services/notificationService');
+const Budget = require('../models/Budget');
 
 const router = express.Router();
 
@@ -146,6 +148,61 @@ router.post('/', [
 
     await transaction.save();
     await transaction.populate('user', 'name email');
+
+    // Create notification for transaction
+    if (type === 'expense') {
+      await notificationService.notifyTransactionAdded(req.user._id, amount, category);
+      
+      // Check budget and create warning if needed
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      
+      const budget = await Budget.findOne({
+        user: req.user._id,
+        month: currentMonth,
+        year: currentYear
+      });
+
+      if (budget) {
+        const categoryBudget = budget.categories.find(c => c.category === category);
+        if (categoryBudget) {
+          // Calculate total spent in this category this month
+          const startOfMonth = new Date(currentYear, currentMonth, 1);
+          const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+          
+          const totalSpent = await Transaction.aggregate([
+            {
+              $match: {
+                user: req.user._id,
+                type: 'expense',
+                category: category,
+                date: { $gte: startOfMonth, $lte: endOfMonth }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                total: { $sum: '$amount' }
+              }
+            }
+          ]);
+
+          const spent = totalSpent.length > 0 ? totalSpent[0].total : 0;
+          const budgetAmount = categoryBudget.allocated;
+          const percentage = Math.round((spent / budgetAmount) * 100);
+
+          // Budget exceeded
+          if (spent > budgetAmount) {
+            const excess = spent - budgetAmount;
+            await notificationService.notifyBudgetExceeded(req.user._id, category, excess, budgetAmount);
+          }
+          // Budget warning at 80%
+          else if (percentage >= 80 && percentage < 100) {
+            await notificationService.notifyBudgetWarning(req.user._id, category, percentage, spent, budgetAmount);
+          }
+        }
+      }
+    }
 
     res.status(201).json({
       message: 'Transaction created successfully',

@@ -12,44 +12,53 @@ import TaxTips from "./pages/TaxTips";
 import ExpenseCalendar from "./pages/ExpenseCalendar";
 import AIMentor from "./pages/AIMentor";
 import Transactions from "./pages/Transactions";
+import MemoryDashboard from "./pages/MemoryDashboard";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { TaxNotificationProvider } from "./contexts/TaxNotificationContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+      <NotificationProvider>
+        <TaxNotificationProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-          {/* Protected app routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/*" element={
-              <DashboardLayout>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/planner" element={<SmartPlanner />} />
-                  <Route path="/loans" element={<LoanAnalyzer />} />
-                  <Route path="/tax-tips" element={<TaxTips />} />
-                  <Route path="/calendar" element={<ExpenseCalendar />} />
-                  <Route path="/ai-mentor" element={<AIMentor />} />
-                  <Route path="/transactions" element={<Transactions />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </DashboardLayout>
-            } />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+              {/* Protected app routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/*" element={
+                  <DashboardLayout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/planner" element={<SmartPlanner />} />
+                      <Route path="/loans" element={<LoanAnalyzer />} />
+                      <Route path="/tax-tips" element={<TaxTips />} />
+                      <Route path="/calendar" element={<ExpenseCalendar />} />
+                      <Route path="/ai-mentor" element={<AIMentor />} />
+                      <Route path="/transactions" element={<Transactions />} />
+                      {/* Memory Dashboard hidden - memory works automatically in background */}
+                      {/* <Route path="/memory-dashboard" element={<MemoryDashboard />} /> */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </DashboardLayout>
+                } />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </TaxNotificationProvider>
+      </NotificationProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

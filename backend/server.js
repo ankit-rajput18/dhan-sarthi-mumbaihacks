@@ -62,7 +62,13 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/dhan-sart
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ Connected to MongoDB'))
+.then(() => {
+  console.log('✅ Connected to MongoDB');
+  
+  // Start notification job service after DB connection
+  const notificationJobService = require('./services/notificationJobService');
+  notificationJobService.startPeriodicChecks();
+})
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Routes
@@ -71,6 +77,10 @@ app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/loans', require('./routes/loans'));
 app.use('/api/goals', require('./routes/goals'));
 app.use('/api/budgets', require('./routes/budgets'));
+app.use('/api/ai', require('./routes/ai'));
+app.use('/api/memory', require('./routes/memory'));
+app.use('/api/tax', require('./routes/tax'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Serve frontend static files in production
 if (process.env.NODE_ENV === 'production') {

@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const Goal = require('../models/Goal');
 const auth = require('../middleware/auth');
+const notificationService = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -62,6 +63,106 @@ router.get('/', [
   } catch (error) {
     console.error('Get goals error:', error);
     res.status(500).json({ message: 'Server error while fetching goals' });
+  }
+});
+
+// @route   GET /api/goals/available-funds
+// @desc    Calculate available funds for goal allocation (ALL TIME)
+// @access  Private
+router.get('/available-funds', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    console.log(`Calculating available funds for user ${userId} (all time)`);
+    
+    // Import Transaction and Loan models
+    const Transaction = require('../models/Transaction');
+    const Loan = require('../models/Loan');
+    
+    // Get ALL transactions (no date filter)
+    const transactions = await Transaction.find({
+      user: userId
+    });
+    
+    console.log(`Found ${transactions.length} total transactions`);
+    
+    // Calculate total income (all time)
+    const totalIncome = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+    
+    // Calculate total expenses (all time)
+    const totalExpenses = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    
+    console.log(`Total Income: ${totalIncome}, Total Expenses: ${totalExpenses}`);
+    
+    // Get all active loans and calculate total EMI paid so far
+    const loans = await Loan.find({
+      user: userId,
+      status: 'active'
+    }).catch(err => {
+      console.log('Loan query error (non-critical):', err.message);
+      return [];
+    });
+    
+    // Calculate total EMI payments made (from payment history)
+    let totalEMIs = 0;
+    (loans || []).forEach(loan => {
+      if (loan.paymentHistory && loan.paymentHistory.length > 0) {
+        const totalPaid = loan.paymentHistory.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+        totalEMIs += totalPaid;
+      }
+    });
+    
+    console.log(`Total EMIs paid: ${totalEMIs}`);
+    
+    // Get all goals and calculate total allocated (all time)
+    const goals = await Goal.find({
+      user: userId,
+      status: 'active'
+    });
+    
+    console.log(`Found ${goals.length} active goals`);
+    
+    let totalAllocated = 0;
+    goals.forEach(goal => {
+      if (goal.contributions && goal.contributions.length > 0) {
+        const goalTotal = goal.contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
+        totalAllocated += goalTotal;
+      }
+    });
+    
+    console.log(`Total allocated to goals: ${totalAllocated}`);
+    
+    // Calculate available funds (all time balance)
+    const availableFunds = Math.max(0, totalIncome - totalExpenses - totalEMIs - totalAllocated);
+    
+    console.log(`Available funds: ${availableFunds}`);
+    
+    res.json({
+      totalIncome,
+      totalExpenses,
+      totalEMIs,
+      totalAllocated,
+      availableFunds,
+      breakdown: {
+        income: totalIncome,
+        expenses: totalExpenses,
+        emis: totalEMIs,
+        allocated: totalAllocated,
+        available: availableFunds
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Calculate available funds error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Server error while calculating available funds',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
@@ -183,6 +284,10 @@ router.put('/:id', [
       return res.status(404).json({ message: 'Goal not found' });
     }
 
+    // Store old values for comparison
+    const oldCurrentAmount = goal.currentAmount;
+    const oldProgress = goal.progressPercentage;
+
     // Update fields
     const updateData = {};
     if (req.body.name) updateData.name = req.body.name;
@@ -200,6 +305,38 @@ router.put('/:id', [
       updateData,
       { new: true, runValidators: true }
     ).populate('user', 'name email');
+
+    // Check for milestone notifications
+    if (req.body.currentAmount !== undefined && req.body.currentAmount > oldCurrentAmount) {
+      const newProgress = updatedGoal.progressPercentage;
+      const milestones = [25, 50, 75, 90, 100];
+      const lastNotified = updatedGoal.lastNotifiedMilestone || 0;
+
+      for (const milestone of milestones) {
+        if (newProgress >= milestone && lastNotified < milestone) {
+          if (milestone === 100) {
+            await notificationService.notifyGoalAchieved(
+              req.user._id,
+              updatedGoal.name,
+              updatedGoal.targetAmount
+            );
+          } else {
+            await notificationService.notifyGoalProgress(
+              req.user._id,
+              updatedGoal.name,
+              milestone,
+              updatedGoal.currentAmount,
+              updatedGoal.targetAmount
+            );
+          }
+          
+          // Update milestone
+          updatedGoal.lastNotifiedMilestone = milestone;
+          await updatedGoal.save();
+          break;
+        }
+      }
+    }
 
     res.json({
       message: 'Goal updated successfully',
@@ -275,6 +412,92 @@ router.put('/:id/amount', [
   } catch (error) {
     console.error('Update goal amount error:', error);
     res.status(500).json({ message: 'Server error while updating goal amount' });
+  }
+});
+
+// @route   POST /api/goals/:id/contribute
+// @desc    Add contribution to a goal
+// @access  Private
+router.post('/:id/contribute', [
+  auth,
+  body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
+  body('date').optional().isISO8601().withMessage('Date must be valid'),
+  body('note').optional().isString().withMessage('Note must be a string')
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const goal = await Goal.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!goal) {
+      return res.status(404).json({ message: 'Goal not found' });
+    }
+
+    const { amount, date, note } = req.body;
+    const oldProgress = goal.progressPercentage;
+
+    // Add contribution
+    await goal.addContribution(
+      amount,
+      date ? new Date(date) : new Date(),
+      note || ''
+    );
+
+    await goal.populate('user', 'name email');
+
+    // Check for milestone notifications
+    const newProgress = goal.progressPercentage;
+    const milestones = [25, 50, 75, 90, 100];
+    const lastNotified = goal.lastNotifiedMilestone || 0;
+
+    for (const milestone of milestones) {
+      if (newProgress >= milestone && lastNotified < milestone) {
+        if (milestone === 100) {
+          await notificationService.notifyGoalAchieved(
+            req.user._id,
+            goal.name,
+            goal.targetAmount
+          );
+        } else {
+          await notificationService.notifyGoalProgress(
+            req.user._id,
+            goal.name,
+            milestone,
+            goal.currentAmount,
+            goal.targetAmount
+          );
+        }
+        
+        // Update milestone
+        goal.lastNotifiedMilestone = milestone;
+        await goal.save();
+        break;
+      }
+    }
+
+    res.json({
+      message: 'Contribution added successfully',
+      goal,
+      contribution: {
+        amount,
+        date: date || new Date(),
+        note: note || ''
+      }
+    });
+
+  } catch (error) {
+    console.error('Add contribution error:', error);
+    res.status(500).json({ message: 'Server error while adding contribution' });
   }
 });
 

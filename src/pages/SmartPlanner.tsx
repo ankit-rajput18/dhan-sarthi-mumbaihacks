@@ -34,7 +34,7 @@ import {
   Lightbulb,
   AlertTriangle,
   CheckCircle,
-  DollarSign,
+  IndianRupee,
   CreditCard,
   X,
   MoreHorizontal
@@ -90,7 +90,18 @@ const SmartPlanner = () => {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [dismissedInsights, setDismissedInsights] = useState<Set<number>>(new Set());
+  // Available funds state
+  const [availableFunds, setAvailableFunds] = useState<any>(null);
+  const [loadingFunds, setLoadingFunds] = useState(true);
+
+  // Allocation modal state
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
+  const [allocationData, setAllocationData] = useState({
+    amount: "",
+    date: new Date().toISOString().split('T')[0],
+    note: ""
+  });
 
   // Goal categories with icons
   const goalCategories = [
@@ -119,57 +130,18 @@ const SmartPlanner = () => {
     "other-expense": { icon: MoreHorizontal, color: "bg-gray-500" },
   };
 
-  // Mock loan data for AI analysis
-  const existingLoans = [
-    {
-      id: 1,
-      name: "Home Loan",
-      principal: 2500000,
-      remainingBalance: 2100000,
-      emiAmount: 18500,
-      interestRate: 8.5,
-      tenure: 240,
-      remainingTenure: 198,
-    },
-    {
-      id: 2,
-      name: "Car Loan",
-      principal: 800000,
-      remainingBalance: 320000,
-      emiAmount: 15200,
-      interestRate: 9.2,
-      tenure: 60,
-      remainingTenure: 18,
-    },
-    {
-      id: 3,
-      name: "Personal Loan",
-      principal: 300000,
-      remainingBalance: 180000,
-      emiAmount: 8500,
-      interestRate: 12.5,
-      tenure: 48,
-      remainingTenure: 24,
-    },
-  ];
-
-  const spendingTrend = [
-    { month: 'Jan', amount: 32000 },
-    { month: 'Feb', amount: 28000 },
-    { month: 'Mar', amount: 35000 },
-    { month: 'Apr', amount: 31000 },
-    { month: 'May', amount: 29000 },
-    { month: 'Jun', amount: 33000 },
-  ];
-
   // Replace the mock data with state for real data
   const [monthlyBreakdown, setMonthlyBreakdown] = useState<BudgetCategory[]>([]);
   const [loadingBudget, setLoadingBudget] = useState(true);
+  const [spendingTrend, setSpendingTrend] = useState<Array<{ month: string; amount: number }>>([]);
+  const [loadingTrend, setLoadingTrend] = useState(true);
 
   // Fetch goals from API when component mounts
   useEffect(() => {
     fetchGoals();
-    fetchMonthlyBreakdown(); // Add this to fetch budget data
+    fetchMonthlyBreakdown();
+    fetchAvailableFunds();
+    fetchSpendingTrend();
   }, []);
 
   const fetchGoals = async () => {
@@ -249,6 +221,132 @@ const SmartPlanner = () => {
       description: "",
       priority: "medium"
     });
+  };
+
+  // Fetch available funds (all time)
+  const fetchAvailableFunds = async () => {
+    try {
+      setLoadingFunds(true);
+      const response: any = await goalsAPI.getAvailableFunds();
+      setAvailableFunds(response);
+    } catch (error) {
+      console.error("Error fetching available funds:", error);
+      // Set default values instead of showing error
+      setAvailableFunds({
+        totalIncome: 0,
+        totalExpenses: 0,
+        totalEMIs: 0,
+        totalAllocated: 0,
+        availableFunds: 0,
+        breakdown: {
+          income: 0,
+          expenses: 0,
+          emis: 0,
+          allocated: 0,
+          available: 0
+        }
+      });
+    } finally {
+      setLoadingFunds(false);
+    }
+  };
+
+  // Fetch spending trend for last 6 months
+  const fetchSpendingTrend = async () => {
+    try {
+      setLoadingTrend(true);
+      const now = new Date();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const trendData = [];
+
+      // Get last 6 months of data
+      for (let i = 5; i >= 0; i--) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = targetDate.getFullYear();
+        const month = targetDate.getMonth();
+        
+        const startDate = new Date(year, month, 1).toISOString();
+        const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
+        
+        try {
+          const response = await transactionAPI.getSummary(startDate, endDate);
+          const expenses = response?.categoryBreakdown
+            ?.filter((item: any) => 
+              item._id !== 'other-income' && 
+              item._id !== 'salary' && 
+              item._id !== 'freelance' && 
+              item._id !== 'investment' && 
+              item._id !== 'business'
+            )
+            .reduce((sum: number, item: any) => sum + Math.abs(item.total), 0) || 0;
+          
+          trendData.push({
+            month: monthNames[month],
+            amount: expenses
+          });
+        } catch (error) {
+          console.error(`Error fetching data for ${monthNames[month]}:`, error);
+          trendData.push({
+            month: monthNames[month],
+            amount: 0
+          });
+        }
+      }
+
+      setSpendingTrend(trendData);
+    } catch (error) {
+      console.error("Error fetching spending trend:", error);
+    } finally {
+      setLoadingTrend(false);
+    }
+  };
+
+  // Handle allocation modal open
+  const handleOpenAllocateModal = (goal: SavingsGoal) => {
+    setSelectedGoal(goal);
+    setAllocationData({
+      amount: "",
+      date: new Date().toISOString().split('T')[0],
+      note: ""
+    });
+    setShowAllocateModal(true);
+  };
+
+  // Handle allocation submit
+  const handleAllocateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGoal) return;
+
+    try {
+      const amount = parseFloat(allocationData.amount);
+      
+      if (amount <= 0) {
+        toast.error("Amount must be greater than 0");
+        return;
+      }
+
+      if (availableFunds && amount > availableFunds.availableFunds) {
+        toast.error("Amount exceeds available funds");
+        return;
+      }
+
+      await goalsAPI.addContribution(selectedGoal.id, {
+        amount,
+        date: allocationData.date,
+        note: allocationData.note
+      });
+
+      toast.success(`₹${amount.toLocaleString()} allocated to ${selectedGoal.name}`);
+      setShowAllocateModal(false);
+      setSelectedGoal(null);
+      
+      // Refresh data
+      fetchGoals();
+      fetchAvailableFunds();
+    } catch (error) {
+      console.error("Error allocating funds:", error);
+      toast.error("Failed to allocate funds");
+    }
   };
 
   // Fetch monthly budget breakdown
@@ -775,45 +873,107 @@ const SmartPlanner = () => {
         </Dialog>
       </div>
 
-      {/* AI Financial Insights */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Lightbulb className="w-5 h-5 text-primary" />
-          AI Financial Insights
-        </h2>
-        <div className="space-y-4">
-          {getAIFinancialInsights()
-            .filter(insight => !dismissedInsights.has(insight.id))
-            .map((insight) => (
-            <Alert key={insight.id} className={`border-${insight.type === 'warning' ? 'warning' : insight.type === 'success' ? 'success' : 'primary'}/20 bg-${insight.type === 'warning' ? 'warning' : insight.type === 'success' ? 'success' : 'primary'}/5 relative`}>
-              <insight.icon className={`h-5 w-5 text-${insight.type === 'warning' ? 'warning' : insight.type === 'success' ? 'success' : 'primary'}`} />
-              <AlertDescription>
-                <div className="space-y-2 pr-8">
-                  <div className="font-semibold">{insight.title}</div>
-                  <div className="text-sm">{insight.message}</div>
-                  <div className="text-sm font-medium text-primary">
-                    💡 {insight.recommendation}
+      {/* Available Funds & Spending Trend Grid */}
+      <div className="grid lg:grid-cols-5 gap-6">
+        {/* Available Funds Card - Takes 2 columns */}
+        <div className="lg:col-span-2">
+          <Card className="shadow-card border-0 bg-gradient-to-br from-primary/10 to-primary/5 h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IndianRupee className="w-5 h-5 text-primary" />
+                Available for Goals
+              </CardTitle>
+              <CardDescription>Total funds available to allocate to your savings goals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingFunds ? (
+                <div className="flex justify-center items-center h-20">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : availableFunds ? (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-primary">
+                      ₹{availableFunds.availableFunds.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">Available to allocate</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Income</p>
+                      <p className="font-semibold text-green-600">+₹{availableFunds.totalIncome.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Expenses</p>
+                      <p className="font-semibold text-red-600">-₹{availableFunds.totalExpenses.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">EMIs</p>
+                      <p className="font-semibold text-orange-600">-₹{availableFunds.totalEMIs.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Allocated</p>
+                      <p className="font-semibold text-blue-600">-₹{availableFunds.totalAllocated.toLocaleString()}</p>
+                    </div>
                   </div>
                 </div>
-              </AlertDescription>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 h-6 w-6 pl-0 hover:bg-black/10"
-                onClick={() => setDismissedInsights(prev => new Set([...prev, insight.id]))}
-              >
-                <X className="h-3 w-3 mr-3" />
-              </Button>
-            </Alert>
-          ))}
+              ) : (
+                <p className="text-center text-muted-foreground">Unable to load available funds</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Spending Trend Chart - Takes 3 columns */}
+        <div className="lg:col-span-3">
+          <Card className="shadow-card border-0 h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-primary" />
+                Spending Trend
+              </CardTitle>
+              <CardDescription>Your monthly spending pattern over the last 6 months</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingTrend ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : spendingTrend.length === 0 ? (
+                <div className="flex flex-col justify-center items-center h-64 text-muted-foreground">
+                  <TrendingDown className="w-12 h-12 mb-2 text-muted-foreground/20" />
+                  <p>No spending data available</p>
+                  <p className="text-sm mt-1">Add transactions to see your spending trend</p>
+                </div>
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={spendingTrend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis tickFormatter={(value) => `₹${(value/1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Spending']} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Monthly Breakdown & Spending Trend */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Monthly Breakdown */}
-          <Card className="shadow-card border-0">
+      {/* Monthly Budget Breakdown & Savings Goals Grid */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Monthly Breakdown - Takes 1 column */}
+        <Card className="shadow-card border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" />
@@ -863,41 +1023,8 @@ const SmartPlanner = () => {
             </CardContent>
           </Card>
 
-          {/* Spending Trend Chart */}
-          <Card className="shadow-card border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingDown className="w-5 h-5 text-primary" />
-                Spending Trend
-              </CardTitle>
-              <CardDescription>Your monthly spending pattern over the last 6 months</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={spendingTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `₹${(value/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Spending']} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="amount" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Savings Goals & Transaction Manager Preview */}
-        <div className="space-y-6">
-          {/* Savings Goals */}
-          <Card className="shadow-card border-0">
+        {/* Savings Goals - Takes 1 column */}
+        <Card className="shadow-card border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <PiggyBank className="w-5 h-5 text-primary" />
@@ -965,73 +1092,93 @@ const SmartPlanner = () => {
                       </div>
                     )}
 
-                    {/* AI Recommendation for this goal */}
-                    {(() => {
-                      const recommendation = getGoalSpecificRecommendation(goal);
-                      return (
-                        <div className={`p-3 rounded-lg ${
-                          recommendation.type === 'save' ? 'bg-green-50 border border-green-200' :
-                          recommendation.type === 'loan' ? 'bg-orange-50 border border-orange-200' :
-                          recommendation.type === 'alert' ? 'bg-red-50 border border-red-200' :
-                          'bg-blue-50 border border-blue-200'
-                        }`}>
-                          <div className="flex items-start gap-2">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                              recommendation.type === 'save' ? 'bg-green-500' :
-                              recommendation.type === 'loan' ? 'bg-orange-500' :
-                              recommendation.type === 'alert' ? 'bg-red-500' :
-                              'bg-blue-500'
-                            }`}>
-                              {recommendation.type === 'save' ? (
-                                <PiggyBank className="w-3 h-3 text-white" />
-                              ) : recommendation.type === 'loan' ? (
-                                <CreditCard className="w-3 h-3 text-white" />
-                              ) : recommendation.type === 'alert' ? (
-                                <AlertTriangle className="w-3 h-3 text-white" />
-                              ) : (
-                                <Target className="w-3 h-3 text-white" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <p className={`text-xs font-medium ${
-                                recommendation.type === 'save' ? 'text-green-700' :
-                                recommendation.type === 'loan' ? 'text-orange-700' :
-                                recommendation.type === 'alert' ? 'text-red-700' :
-                                'text-blue-700'
-                              }`}>
-                                AI Recommendation: {recommendation.message}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {recommendation.reason}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    {/* Allocate Button */}
+                    <Button 
+                      className="w-full gap-2" 
+                      variant="outline"
+                      onClick={() => handleOpenAllocateModal(goal)}
+                    >
+                      <IndianRupee className="w-4 h-4" />
+                      Allocate Funds
+                    </Button>
                   </div>
                 );
               })}
             </CardContent>
           </Card>
-
-          {/* Transaction Manager Preview */}
-          <Card className="shadow-card border-0">
-            <CardHeader>
-              <CardTitle>Transactions</CardTitle>
-              <CardDescription>Manage your income and expenses</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Track and manage all your financial transactions in one place.
-              </p>
-              <Button className="w-full" onClick={() => navigate("/transactions")}>
-                View Transactions
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
       </div>
+
+      {/* Allocation Modal */}
+      <Dialog open={showAllocateModal} onOpenChange={setShowAllocateModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Allocate to: {selectedGoal?.name}</DialogTitle>
+            <DialogDescription>
+              Add funds to your goal from available balance
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAllocateSubmit} className="space-y-4">
+            {availableFunds && (
+              <div className="bg-primary/10 p-3 rounded-lg">
+                <p className="text-sm font-medium">Available Funds</p>
+                <p className="text-2xl font-bold text-primary">
+                  ₹{availableFunds.availableFunds.toLocaleString()}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="allocateAmount">Amount (₹)</Label>
+              <Input
+                id="allocateAmount"
+                type="number"
+                placeholder="5000"
+                value={allocationData.amount}
+                onChange={(e) => setAllocationData({ ...allocationData, amount: e.target.value })}
+                required
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="allocateDate">Date</Label>
+              <Input
+                id="allocateDate"
+                type="date"
+                value={allocationData.date}
+                onChange={(e) => setAllocationData({ ...allocationData, date: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="allocateNote">Note (Optional)</Label>
+              <Textarea
+                id="allocateNote"
+                placeholder="e.g., Saved from January salary"
+                value={allocationData.note}
+                onChange={(e) => setAllocationData({ ...allocationData, note: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" className="flex-1">
+                Allocate
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowAllocateModal(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Toaster />
     </div>

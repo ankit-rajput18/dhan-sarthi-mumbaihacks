@@ -46,6 +46,26 @@ const loanSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  riskLevel: {
+    type: String,
+    enum: ['Low Risk', 'Moderate Risk', 'High Risk'],
+    default: 'Low Risk'
+  },
+  nextPaymentDate: {
+    type: Date
+  },
+  paymentHistory: [{
+    date: {
+      type: Date,
+      default: Date.now
+    },
+    amount: Number,
+    status: {
+      type: String,
+      enum: ['paid', 'pending', 'overdue'],
+      default: 'paid'
+    }
+  }],
   startDate: {
     type: Date,
     required: [true, 'Start date is required'],
@@ -54,6 +74,15 @@ const loanSchema = new mongoose.Schema({
   endDate: {
     type: Date,
     required: true
+  },
+  installmentDueDay: {
+    type: Number,
+    required: [true, 'Installment due day is required'],
+    min: [1, 'Due day must be between 1 and 28'],
+    max: [28, 'Due day must be between 1 and 28'],
+    default: function() {
+      return new Date(this.startDate).getDate();
+    }
   },
   lender: {
     type: String,
@@ -76,7 +105,7 @@ const loanSchema = new mongoose.Schema({
     enum: ['monthly', 'quarterly', 'yearly'],
     default: 'monthly'
   },
-  // EMI Schedule
+  // EMI Schedule with monthly due dates
   emiSchedule: [{
     emiNumber: {
       type: Number,
@@ -84,6 +113,10 @@ const loanSchema = new mongoose.Schema({
     },
     dueDate: {
       type: Date,
+      required: true
+    },
+    dueDateDay: {
+      type: Number, // Day of month (1-31) for recurring due date
       required: true
     },
     principalAmount: {
@@ -104,7 +137,7 @@ const loanSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'overdue'],
+      enum: ['pending', 'paid', 'overdue', 'upcoming'],
       default: 'pending'
     },
     paidDate: {
@@ -117,6 +150,14 @@ const loanSchema = new mongoose.Schema({
     lateFee: {
       type: Number,
       default: 0
+    },
+    daysOverdue: {
+      type: Number,
+      default: 0
+    },
+    alertSent: {
+      type: Boolean,
+      default: false
     }
   }],
   // Payment History
@@ -252,12 +293,15 @@ loanSchema.methods.calculateEMI = function() {
   return Math.round(emi);
 };
 
-// Method to generate EMI schedule
+// Method to generate EMI schedule with monthly due dates
 loanSchema.methods.generateEMISchedule = function() {
   const schedule = [];
   let remainingBalance = this.principalAmount;
   const monthlyRate = this.interestRate / (12 * 100);
   const emiAmount = this.emiAmount;
+  
+  // Use the installmentDueDay field or fallback to start date day
+  const dueDateDay = this.installmentDueDay || new Date(this.startDate).getDate();
   
   for (let i = 1; i <= this.tenureMonths; i++) {
     const interestAmount = remainingBalance * monthlyRate;
@@ -267,23 +311,71 @@ loanSchema.methods.generateEMISchedule = function() {
     const dueDate = new Date(this.startDate);
     dueDate.setMonth(dueDate.getMonth() + i);
     
+    // Set the due date to the installment due day each month
+    // Handle month-end cases (e.g., if due day is 31 but month has only 30 days)
+    const lastDayOfMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0).getDate();
+    dueDate.setDate(Math.min(dueDateDay, lastDayOfMonth));
+    
+    // Determine status based on due date
+    const today = new Date();
+    const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+    let status = 'pending';
+    if (daysUntilDue > 7) {
+      status = 'upcoming';
+    } else if (daysUntilDue < 0) {
+      status = 'overdue';
+    }
+    
     schedule.push({
       emiNumber: i,
       dueDate: dueDate,
+      dueDateDay: dueDateDay,
       principalAmount: Math.round(principalAmount),
       interestAmount: Math.round(interestAmount),
       emiAmount: emiAmount,
       remainingBalance: Math.round(remainingBalance),
-      status: 'pending'
+      status: status,
+      daysOverdue: daysUntilDue < 0 ? Math.abs(daysUntilDue) : 0
     });
   }
   
   return schedule;
 };
 
-// Method to update loan status
+// Method to calculate loan risk
+loanSchema.methods.calculateLoanRisk = function(userIncome) {
+  if (!userIncome || userIncome <= 0) {
+    return 'Low Risk'; // Default if income not available
+  }
+
+  const emi = this.emiAmount;
+  const interest = this.interestRate;
+  const tenure = this.tenureMonths;
+  
+  const ratio = emi / userIncome;
+  let score = 0;
+
+  // EMI to income ratio scoring
+  if (ratio > 0.5) score += 5;
+  else if (ratio > 0.3) score += 3;
+  else score += 1;
+
+  // Interest rate scoring
+  if (interest > 12) score += 2;
+
+  // Tenure scoring
+  if (tenure > 36) score += 2;
+
+  // Determine risk level
+  if (score >= 8) return 'High Risk';
+  if (score >= 4) return 'Moderate Risk';
+  return 'Low Risk';
+};
+
+// Method to update loan status and EMI statuses
 loanSchema.methods.updateLoanStatus = function() {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   
   // Check if loan is completed
   if (this.remainingBalance <= 0) {
@@ -291,16 +383,71 @@ loanSchema.methods.updateLoanStatus = function() {
     return;
   }
   
+  // Update EMI statuses based on due dates
+  this.emiSchedule.forEach(emi => {
+    if (emi.status === 'paid') return;
+    
+    const dueDate = new Date(emi.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilDue < 0) {
+      emi.status = 'overdue';
+      emi.daysOverdue = Math.abs(daysUntilDue);
+    } else if (daysUntilDue <= 7) {
+      emi.status = 'pending';
+    } else {
+      emi.status = 'upcoming';
+    }
+  });
+  
   // Check for overdue EMIs
-  const overdueEMIs = this.emiSchedule.filter(emi => 
-    emi.status === 'pending' && emi.dueDate < today
-  );
+  const overdueEMIs = this.emiSchedule.filter(emi => emi.status === 'overdue');
   
   if (overdueEMIs.length > 0) {
     this.status = 'defaulted';
   } else {
     this.status = 'active';
   }
+};
+
+// Method to get installment summary
+loanSchema.methods.getInstallmentSummary = function() {
+  const total = this.emiSchedule.length;
+  const paid = this.emiSchedule.filter(e => e.status === 'paid').length;
+  const overdue = this.emiSchedule.filter(e => e.status === 'overdue').length;
+  const pending = this.emiSchedule.filter(e => e.status === 'pending').length;
+  const upcoming = this.emiSchedule.filter(e => e.status === 'upcoming').length;
+  
+  return {
+    total,
+    paid,
+    remaining: total - paid,
+    overdue,
+    pending,
+    upcoming,
+    completionPercentage: ((paid / total) * 100).toFixed(1)
+  };
+};
+
+// Method to get upcoming due dates
+loanSchema.methods.getUpcomingDueDates = function(months = 3) {
+  const today = new Date();
+  const futureDate = new Date();
+  futureDate.setMonth(today.getMonth() + months);
+  
+  return this.emiSchedule
+    .filter(emi => emi.status !== 'paid' && emi.dueDate <= futureDate)
+    .sort((a, b) => a.dueDate - b.dueDate)
+    .map(emi => ({
+      emiNumber: emi.emiNumber,
+      dueDate: emi.dueDate,
+      dueDateDay: emi.dueDateDay,
+      amount: emi.emiAmount,
+      status: emi.status,
+      daysUntilDue: Math.ceil((emi.dueDate - today) / (1000 * 60 * 60 * 24)),
+      daysOverdue: emi.daysOverdue
+    }));
 };
 
 // Pre-validate middleware to calculate EMI and generate schedule before required-field validation
@@ -321,9 +468,15 @@ loanSchema.pre('validate', function(next) {
     // Set initial remaining balance
     this.remainingBalance = this.principalAmount;
     
-    // Set next EMI date and amount
+    // Set next EMI date and amount using installmentDueDay
     const nextEmiDate = new Date(this.startDate);
     nextEmiDate.setMonth(nextEmiDate.getMonth() + 1);
+    
+    // Set the due date to the installment due day
+    const dueDateDay = this.installmentDueDay || new Date(this.startDate).getDate();
+    const lastDayOfMonth = new Date(nextEmiDate.getFullYear(), nextEmiDate.getMonth() + 1, 0).getDate();
+    nextEmiDate.setDate(Math.min(dueDateDay, lastDayOfMonth));
+    
     this.nextEmiDate = nextEmiDate;
     this.nextEmiAmount = this.emiAmount;
     

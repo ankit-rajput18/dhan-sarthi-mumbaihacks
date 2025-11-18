@@ -9,6 +9,8 @@ const getAuthToken = () => {
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = getAuthToken();
   
+
+  
   const config: RequestInit = {
     ...options,
     headers: {
@@ -149,6 +151,7 @@ export const loanAPI = {
     tenureMonths: number;
     lender: string;
     startDate?: string;
+    installmentDueDay?: number;
     loanAccountNumber?: string;
     paymentFrequency?: 'monthly' | 'quarterly' | 'yearly';
     description?: string;
@@ -174,6 +177,7 @@ export const loanAPI = {
     tenureMonths: number;
     lender: string;
     startDate: string;
+    installmentDueDay: number;
     loanAccountNumber: string;
     paymentFrequency: 'monthly' | 'quarterly' | 'yearly';
     description: string;
@@ -200,7 +204,7 @@ export const loanAPI = {
   // Record payment
   recordPayment: async (loanId: string, data: {
     amount: number;
-    emiNumber: number;
+    emiNumber?: number;
     paymentDate?: string;
     paymentMethod?: 'cash' | 'card' | 'upi' | 'netbanking' | 'cheque' | 'auto-debit';
     notes?: string;
@@ -250,6 +254,11 @@ export const loanAPI = {
     
     const queryString = searchParams.toString();
     return apiRequest(`/loans/upcoming-emis${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get installment summary and details
+  getInstallments: async (loanId: string) => {
+    return apiRequest(`/loans/${loanId}/installments`);
   },
 };
 
@@ -339,13 +348,36 @@ export const goalsAPI = {
     const queryString = searchParams.toString();
     return apiRequest(`/goals/stats/summary${queryString ? `?${queryString}` : ''}`);
   },
+
+  // Add contribution to goal
+  addContribution: async (id: string, data: {
+    amount: number;
+    date?: string;
+    note?: string;
+  }) => {
+    return apiRequest(`/goals/${id}/contribute`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Get available funds for allocation (all time)
+  getAvailableFunds: async () => {
+    return apiRequest('/goals/available-funds');
+  },
 };
 
 // Budget API functions
 export const budgetAPI = {
   // Get budget for a specific month/year
   getByMonth: async (year: number, month: number) => {
-    return apiRequest(`/budgets/${year}/${month}`);
+    try {
+      return await apiRequest(`/budgets/${year}/${month}`);
+    } catch (error) {
+      // 404 is expected when no budget exists for that month
+      // Return null instead of throwing error
+      return null;
+    }
   },
 
   // Get all budgets for user
@@ -376,6 +408,47 @@ export const budgetAPI = {
   // Delete budget for a specific month/year
   delete: async (year: number, month: number) => {
     return apiRequest(`/budgets/${year}/${month}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// AI API functions
+export const aiAPI = {
+  // Chat with AI mentor
+  chat: async (message: string) => {
+    return apiRequest('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  },
+
+  // Get chat history
+  getHistory: async (limit?: number) => {
+    const searchParams = new URLSearchParams();
+    if (limit) searchParams.append('limit', limit.toString());
+    
+    const queryString = searchParams.toString();
+    return apiRequest(`/ai/history${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Generate automatic insights
+  generateInsights: async () => {
+    return apiRequest('/ai/insights', {
+      method: 'POST',
+    });
+  },
+
+  // Clear chat history
+  clearHistory: async () => {
+    return apiRequest('/ai/history', {
+      method: 'DELETE',
+    });
+  },
+
+  // Delete specific message
+  deleteMessage: async (timestamp: string) => {
+    return apiRequest(`/ai/message/${timestamp}`, {
       method: 'DELETE',
     });
   },

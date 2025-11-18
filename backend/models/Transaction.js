@@ -66,9 +66,17 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for efficient queries
-transactionSchema.index({ user: 1, date: -1 });
-transactionSchema.index({ user: 1, category: 1 });
-transactionSchema.index({ user: 1, type: 1 });
+// Optimized indexes for efficient queries
+// Compound index for date range queries (most common)
+transactionSchema.index({ user: 1, date: -1, type: 1 });
+
+// Index for category filtering
+transactionSchema.index({ user: 1, category: 1, date: -1 });
+
+// Index for monthly aggregations
+transactionSchema.index({ user: 1, date: 1 });
+
+// Sparse index for recurring transactions
+transactionSchema.index({ 'recurring.isRecurring': 1, 'recurring.nextDate': 1 }, { sparse: true });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

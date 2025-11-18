@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, Search, Settings, LogOut } from "lucide-react";
+import { Search, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { logoutUser } from "@/lib/auth";
+import OnboardingCheck from "@/components/OnboardingCheck";
+import ProfileEditModal from "@/components/ProfileEditModal";
+import NotificationBell from "@/components/NotificationBell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,13 +17,23 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   const handleLogout = () => {
     logoutUser();
     navigate("/login", { replace: true });
   };
+
+  const handleSettingsClick = () => {
+    setShowProfileEdit(true);
+  };
+
+  const handleProfileEditClose = () => {
+    setShowProfileEdit(false);
+  };
   return (
-    <SidebarProvider>
+    <OnboardingCheck>
+      <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         
@@ -50,10 +64,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
-                <Bell className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
+              <NotificationBell />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                onClick={handleSettingsClick}
+                title="Edit Profile"
+              >
                 <Settings className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout} className="hidden sm:inline-flex">
@@ -79,6 +97,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </main>
         </div>
       </div>
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal 
+        open={showProfileEdit} 
+        onClose={handleProfileEditClose}
+      />
     </SidebarProvider>
+    </OnboardingCheck>
   );
 }
