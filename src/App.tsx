@@ -16,6 +16,7 @@ import MemoryDashboard from "./pages/MemoryDashboard";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Landing from "./pages/Landing";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { TaxNotificationProvider } from "./contexts/TaxNotificationContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
@@ -32,6 +33,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               {/* Public routes */}
+              <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
 
