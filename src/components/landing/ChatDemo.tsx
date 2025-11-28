@@ -5,6 +5,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, User, Sparkles, TrendingUp, PiggyBank } from "lucide-react";
 
+interface ChatMessage {
+  type: "user" | "ai";
+  message: string;
+  avatar: string;
+  highlight?: boolean;
+  plan?: {
+    timeline: string;
+    monthlySaving: string;
+    tips: string[];
+  };
+}
+
 const ChatDemo = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -22,7 +34,20 @@ const ChatDemo = () => {
       avatar: "AI",
       highlight: true,
     },
-    
+    {
+      type: "ai",
+      message: "Here's your personalized plan:",
+      avatar: "AI",
+      plan: {
+        timeline: "6-7 months",
+        monthlySaving: "₹12,500",
+        tips: [
+          "Reduce dining out by ₹2,000/month",
+          "Switch to a cheaper mobile plan (save ₹500)",
+          "Use public transport 2 days/week (save ₹1,000)",
+        ],
+      },
+    },
     {
       type: "user",
       message: "That sounds good! Can I do it faster?",
