@@ -64,8 +64,7 @@ Our system learns your financial patterns, remembers your goals, and provides in
 ## 🔗 Links
 
 - **Live Demo:** [DhanSarthi AI Live Preview](https://dhan-sarthi-ai.vercel.app/)
-- **Project Output:** [Backend API]()
-- **Presentation Deck:** [DhanSarthi AI Pitch Deck]()
+- **Presentation Deck:** [DhanSarthi AI Pitch Deck](https://drive.google.com/drive/folders/1vNe1fSwk-7ZfDA9mh6739TGtwu0_Gcok)
 
 ## 🏗️ Architecture
 
