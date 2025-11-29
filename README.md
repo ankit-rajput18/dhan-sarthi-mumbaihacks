@@ -4,7 +4,7 @@
 
 **Team Name:** Vibe Coder's 
 **Project Name:** DhanSarthi AI  
-**Team Members:** Ankit Rajput, Mohit Patil, Vaibhav Sonay, Yash Patil
+**Team Members:** Ankit Rajput, Mohit Patil, Vaibhav Sonar, Yash Patil
 
 ## 🎯 Project Overview
 
@@ -105,7 +105,7 @@ This project was developed as part of a hackathon with the following accomplishm
 
 <div align="center">
   
-**Built with ❤️ by Team Zenith | Empowering Financial Futures**
+**Built with ❤️ by Team Vibe Coder's**
 
 </div>
 </parameter_content>
