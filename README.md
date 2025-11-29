@@ -3,7 +3,6 @@
 <div align="center">
   
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Hackathon](https://img.shields.io/badge/hackathon-2024-orange)
 [![Frontend](https://img.shields.io/badge/frontend-React-blue)](https://reactjs.org/)
 [![Backend](https://img.shields.io/badge/backend-Node.js-green)](https://nodejs.org/)
 [![Database](https://img.shields.io/badge/database-MongoDB-brightgreen)](https://www.mongodb.com/)
@@ -13,9 +12,9 @@
 
 ## 👥 Team Information
 
-**Team Name:** Zenith  
+**Team Name:** Vibe Coder's 
 **Project Name:** DhanSarthi AI  
-**Team Members:** Ankit Rajput, Dhruv Patel, Priya Sharma, Rohit Kumar
+**Team Members:** Ankit Rajput, Mohit Patil, Vaibhav Sonay, Yash Patil
 
 ## 🎯 Project Overview
 
@@ -75,31 +74,8 @@ Our system learns your financial patterns, remembers your goals, and provides in
 ## 🔗 Links
 
 - **Live Demo:** [DhanSarthi AI Live Preview](https://dhan-sarthi-ai.vercel.app/)
-- **Project Output:** [Backend API](https://dhan-sarthi-backend.onrender.com/)
-- **Presentation Deck:** [DhanSarthi AI Pitch Deck](https://docs.google.com/presentation/d/1example/edit)
-
-## 🚀 Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/Ankit-rajput1801/dhan-sarthi-zenith-main.git
-
-# Install frontend dependencies
-cd dhan-sarthi-zenith-main/dhan-sarthi-ai
-npm install
-
-# Install backend dependencies
-cd backend
-npm install
-
-# Start frontend development server
-cd ..
-npm run dev
-
-# Start backend server (in another terminal)
-cd backend
-npm run dev
-```
+- **Project Output:** [Backend API]()
+- **Presentation Deck:** [DhanSarthi AI Pitch Deck]()
 
 ## 🏗️ Architecture
 
@@ -133,17 +109,8 @@ Financial stress affects millions of young professionals who lack proper guidanc
 
 This project was developed as part of a hackathon with the following accomplishments:
 - Integrated Google Gemini AI for personalized financial advice
-- Implemented a complete financial tracking ecosystem in under 48 hours
+- Implemented a complete financial tracking ecosystem in under 24 hours
 - Created an intuitive UI/UX focused on accessibility and ease of use
-- Developed a robust backend with secure authentication and data handling
-
-## 📬 Contact
-
-For inquiries about this hackathon project, please contact:
-- **Ankit Rajput** - Team Lead & Full Stack Developer
-- **Dhruv Patel** - AI Integration Specialist
-- **Priya Sharma** - Frontend & UI/UX Designer
-- **Rohit Kumar** - Backend & Database Architect
 
 ---
 
