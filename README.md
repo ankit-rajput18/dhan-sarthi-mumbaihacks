@@ -1,9 +1,7 @@
 # 💰 DhanSarthi AI - Hackathon Edition
 
-## 👥 Team Information
-
 **Team Name:** Vibe Coder's 
-**Project Name:** DhanSarthi AI  
+| **Project Name:** DhanSarthi AI  
 **Team Members:** Vaibhav Sonar, Ankit Rajput, Mohit Patil, Yash Patil
 
 ## 🎯 Project Overview
