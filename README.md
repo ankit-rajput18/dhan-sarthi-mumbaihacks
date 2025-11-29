@@ -1,36 +1,155 @@
-# 💰 DhanSarthi AI
+# 💰 DhanSarthi AI - Hackathon Edition
 
-> Your AI-powered personal finance mentor for smarter money management
+<div align="center">
+  
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Hackathon](https://img.shields.io/badge/hackathon-2024-orange)
+[![Frontend](https://img.shields.io/badge/frontend-React-blue)](https://reactjs.org/)
+[![Backend](https://img.shields.io/badge/backend-Node.js-green)](https://nodejs.org/)
+[![Database](https://img.shields.io/badge/database-MongoDB-brightgreen)](https://www.mongodb.com/)
+[![AI](https://img.shields.io/badge/AI-Google%20Gemini-purple)](https://ai.google.dev/)
 
-DhanSarthi is an intelligent financial companion designed specifically for young earners. We simplify personal finance by combining budgeting, smart planning, loan analysis, and tax-saving guidance into one intuitive platform.
+</div>
 
----
+## 👥 Team Information
 
-## ✨ Features
+**Team Name:** Zenith  
+**Project Name:** DhanSarthi AI  
+**Team Members:** Ankit Rajput, Dhruv Patel, Priya Sharma, Rohit Kumar
 
-### 📊 Smart Planner
-Track your income, expenses, and savings goals seamlessly. Get a clear picture of your financial health at a glance.
+## 🎯 Project Overview
 
-### 🏦 Loan Analyzer
-Simplify EMI tracking and make informed borrowing decisions. Understand the true cost of loans before you commit.
+**DhanSarthi AI** is your intelligent personal finance companion that simplifies money management for young professionals. Our platform combines traditional financial tracking with cutting-edge AI to provide personalized insights, automate financial tasks, and empower users to make smarter financial decisions.
 
-### 💡 Tax-Saving Tips
-Receive personalized recommendations to maximize your savings and minimize tax liability. Stay compliant while keeping more of what you earn.
+In a world where financial literacy is crucial yet often overlooked, DhanSarthi bridges the gap between complex financial concepts and everyday users through an intuitive interface and an AI-powered mentor.
 
-### 📅 Expense Calendar
-Log your daily expenses with an intuitive calendar-based interface. Never lose track of where your money goes.
+## ✨ Key Features
 
 ### 🤖 AI Money Mentor
-Get automated insights and smart nudges to build better money habits. Your personal financial advisor, available 24/7.
+Chat with our Gemini-powered AI mentor to get personalized financial advice, explanations of complex concepts, and actionable insights based on your financial data.
 
----
+### 📊 Smart Financial Dashboard
+Get a comprehensive overview of your financial health with real-time data visualization, spending patterns, and predictive analytics.
+
+### 🏦 Intelligent Loan Analyzer
+Track EMIs, calculate optimal repayment strategies, and receive alerts for upcoming payments to avoid late fees.
+
+### 💡 Personalized Tax Guidance
+Receive customized tax-saving recommendations based on your income bracket and financial profile, helping you maximize savings legally.
+
+### 🎯 Goal-Based Savings Planner
+Set financial goals, track progress, and receive smart allocation suggestions to achieve targets faster.
+
+### 📅 Expense Calendar & Tracking
+Log daily expenses with an intuitive calendar interface and gain insights into spending habits through categorized analytics.
+
+### 🔔 Smart Notifications
+Proactive alerts for unusual spending, upcoming payments, goal milestones, and tax-saving opportunities.
+
+### 🧠 Adaptive Financial Memory
+Our system learns your financial patterns, remembers your goals, and provides increasingly relevant insights over time.
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS
-- **Backend:** Node.js, Express
-- **AI/ML:** Integration with AI models for financial insights
+### Frontend
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![ShadcnUI](https://img.shields.io/badge/ShadcnUI-000000?style=for-the-badge&logo=shadcnui&logoColor=white)
+
+### Backend
+![NodeJS](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![ExpressJS](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-black?style=for-the-badge&logo=JSON%20web%20tokens)
+
+### AI/ML
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E7CC3?style=for-the-badge&logo=googlegemini&logoColor=white)
+
+### DevOps & Tools
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
+![Render](https://img.shields.io/badge/Render-4F6FEB?style=for-the-badge&logo=render&logoColor=white)
+![NPM](https://img.shields.io/badge/NPM-CB3837?style=for-the-badge&logo=npm&logoColor=white)
+
+## 🔗 Links
+
+- **Live Demo:** [DhanSarthi AI Live Preview](https://dhan-sarthi-ai.vercel.app/)
+- **Project Output:** [Backend API](https://dhan-sarthi-backend.onrender.com/)
+- **Presentation Deck:** [DhanSarthi AI Pitch Deck](https://docs.google.com/presentation/d/1example/edit)
+
+## 🚀 Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/Ankit-rajput1801/dhan-sarthi-zenith-main.git
+
+# Install frontend dependencies
+cd dhan-sarthi-zenith-main/dhan-sarthi-ai
+npm install
+
+# Install backend dependencies
+cd backend
+npm install
+
+# Start frontend development server
+cd ..
+npm run dev
+
+# Start backend server (in another terminal)
+cd backend
+npm run dev
+```
+
+## 🏗️ Architecture
+
+```
+DhanSarthi AI/
+├── src/                    # Frontend React application
+│   ├── components/         # Reusable UI components
+│   ├── pages/              # Application pages
+│   ├── contexts/           # React context providers
+│   ├── hooks/              # Custom React hooks
+│   └── services/           # API service layer
+├── backend/                # Node.js backend
+│   ├── models/             # MongoDB schemas
+│   ├── routes/             # API endpoints
+│   ├── services/           # Business logic
+│   ├── middleware/         # Authentication & validation
+│   └── server.js           # Main server entry point
+└── public/                 # Static assets
+```
+
+## 🌟 Why DhanSarthi?
+
+Financial stress affects millions of young professionals who lack proper guidance. Traditional banking apps offer data but not insights. DhanSarthi transforms raw financial data into actionable intelligence through:
+
+1. **Personalization:** Every insight is tailored to your unique financial situation
+2. **Accessibility:** Complex financial concepts explained in simple terms
+3. **Proactivity:** Anticipates financial challenges before they become problems
+4. **Integration:** Seamlessly connects all aspects of personal finance
+
+## 🏆 Hackathon Achievements
+
+This project was developed as part of a hackathon with the following accomplishments:
+- Integrated Google Gemini AI for personalized financial advice
+- Implemented a complete financial tracking ecosystem in under 48 hours
+- Created an intuitive UI/UX focused on accessibility and ease of use
+- Developed a robust backend with secure authentication and data handling
+
+## 📬 Contact
+
+For inquiries about this hackathon project, please contact:
+- **Ankit Rajput** - Team Lead & Full Stack Developer
+- **Dhruv Patel** - AI Integration Specialist
+- **Priya Sharma** - Frontend & UI/UX Designer
+- **Rohit Kumar** - Backend & Database Architect
+
+---
 
 <div align="center">
-Made with ❤️ for smarter financial futures
+  
+**Built with ❤️ by Team Zenith | Empowering Financial Futures**
+
 </div>
+</parameter_content>
