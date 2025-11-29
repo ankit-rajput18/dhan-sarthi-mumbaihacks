@@ -13,6 +13,7 @@ import ExpenseCalendar from "./pages/ExpenseCalendar";
 import AIMentor from "./pages/AIMentor";
 import Transactions from "./pages/Transactions";
 import MemoryDashboard from "./pages/MemoryDashboard";
+import LendingRecommendationsPage from "./pages/LendingRecommendationsPage";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -50,6 +51,7 @@ const App = () => (
                       <Route path="/calendar" element={<ExpenseCalendar />} />
                       <Route path="/ai-mentor" element={<AIMentor />} />
                       <Route path="/transactions" element={<Transactions />} />
+                      <Route path="/lending-recommendations" element={<LendingRecommendationsPage />} />
                       {/* Memory Dashboard hidden - memory works automatically in background */}
                       {/* <Route path="/memory-dashboard" element={<MemoryDashboard />} /> */}
                       <Route path="*" element={<NotFound />} />

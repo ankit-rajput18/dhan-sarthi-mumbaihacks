@@ -23,7 +23,7 @@ import {
   CreditCard,
   RefreshCw
 } from "lucide-react";
-import { transactionAPI } from '@/lib/api';
+import { transactionAPI, lendPersonAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Transaction {
@@ -36,6 +36,7 @@ interface Transaction {
   tags: string[];
   location?: string;
   paymentMethod: string;
+  lendTo?: string;
   recurring: {
     isRecurring: boolean;
     frequency: string;
@@ -53,6 +54,7 @@ interface TransactionFormData {
   tags: string;
   location: string;
   paymentMethod: string;
+  lendTo: string;
   recurring: {
     isRecurring: boolean;
     frequency: string;
@@ -77,6 +79,17 @@ const TransactionManager = () => {
     expenseCount: 0
   });
 
+  // Add date filter states
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showDateFilters, setShowDateFilters] = useState(false);
+
+  // Person name management
+  const [savedPeople, setSavedPeople] = useState<string[]>([]);
+  const [isAddingPerson, setIsAddingPerson] = useState(false);
+  const [newPersonName, setNewPersonName] = useState('');
+  const [loadingPeople, setLoadingPeople] = useState(false);
+
   const [formData, setFormData] = useState<TransactionFormData>({
     type: 'expense',
     amount: '',
@@ -86,6 +99,7 @@ const TransactionManager = () => {
     tags: '',
     location: '',
     paymentMethod: 'cash',
+    lendTo: '',
     recurring: {
       isRecurring: false,
       frequency: 'monthly'
@@ -94,7 +108,7 @@ const TransactionManager = () => {
 
   const categories = {
     income: ['salary', 'freelance', 'investment', 'business', 'other-income'],
-    expense: ['food', 'transport', 'shopping', 'bills', 'entertainment', 'healthcare', 'education', 'travel', 'other-expense']
+    expense: ['food', 'transport', 'shopping', 'bills', 'entertainment', 'healthcare', 'education', 'travel', 'lend', 'other-expense']
   };
 
   const paymentMethods = ['cash', 'card', 'upi', 'netbanking', 'wallet', 'other'];
@@ -103,14 +117,42 @@ const TransactionManager = () => {
   useEffect(() => {
     fetchTransactions();
     fetchStats();
-  }, [currentPage, filterType, filterCategory]);
+  }, [currentPage, filterType, filterCategory, startDate, endDate]);
+
+  const fetchPeople = async () => {
+    try {
+      setLoadingPeople(true);
+      const response = await lendPersonAPI.getAll();
+      setSavedPeople(response.people || []);
+    } catch (error) {
+      console.error('Error fetching people:', error);
+    } finally {
+      setLoadingPeople(false);
+    }
+  };
+
+  const handleAddPerson = async () => {
+    if (newPersonName.trim()) {
+      try {
+        await lendPersonAPI.add(newPersonName.trim());
+        await fetchPeople();
+        setFormData({ ...formData, lendTo: newPersonName.trim() });
+        setNewPersonName('');
+        setIsAddingPerson(false);
+        toast.success('Person added successfully');
+      } catch (error: any) {
+        console.error('Error adding person:', error);
+        toast.error(error.message || 'Failed to add person');
+      }
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       const params: any = {
         page: currentPage,
-        limit: 10
+        limit: 50  // Increased limit to show more transactions
       };
 
       if (filterType !== 'all') {
@@ -119,6 +161,15 @@ const TransactionManager = () => {
 
       if (filterCategory !== 'all') {
         params.category = filterCategory;
+      }
+
+      // Add date filters if provided
+      if (startDate) {
+        params.startDate = startDate;
+      }
+
+      if (endDate) {
+        params.endDate = endDate;
       }
 
       const response = await transactionAPI.getAll(params);
@@ -145,6 +196,12 @@ const TransactionManager = () => {
     e.preventDefault();
     
     try {
+      // Validation for lend category
+      if (formData.category === 'lend' && !formData.lendTo.trim()) {
+        toast.error('Please enter the name of the person you are lending money to');
+        return;
+      }
+
       const transactionData = {
         ...formData,
         amount: parseFloat(formData.amount),
@@ -181,6 +238,7 @@ const TransactionManager = () => {
       tags: transaction.tags.join(', '),
       location: transaction.location || '',
       paymentMethod: transaction.paymentMethod,
+      lendTo: transaction.lendTo || '',
       recurring: {
         isRecurring: transaction.recurring.isRecurring,
         frequency: transaction.recurring.frequency || 'monthly'
@@ -213,6 +271,7 @@ const TransactionManager = () => {
       tags: '',
       location: '',
       paymentMethod: 'cash',
+      lendTo: '',
       recurring: {
         isRecurring: false,
         frequency: 'monthly'
@@ -252,6 +311,7 @@ const TransactionManager = () => {
       healthcare: '🏥',
       education: '📚',
       travel: '✈️',
+      lend: '🤝',
       salary: '💰',
       freelance: '💼',
       investment: '📈',
@@ -259,6 +319,22 @@ const TransactionManager = () => {
     };
     return iconMap[category] || '💳';
   };
+
+  // Reset filters
+  const resetFilters = () => {
+    setFilterType('all');
+    setFilterCategory('all');
+    setStartDate('');
+    setEndDate('');
+    setSearchTerm('');
+  };
+
+  // Update the useEffect to fetch people when dialog opens
+  useEffect(() => {
+    if (isDialogOpen) {
+      fetchPeople();
+    }
+  }, [isDialogOpen]);
 
   return (
     <div className="space-y-6">
@@ -288,13 +364,8 @@ const TransactionManager = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Type</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: 'income' | 'expense') => 
-                      setFormData({ ...formData, type: value, category: '' })
-                    }
-                  >
+                  <Label htmlFor="type">Type *</Label>
+                  <Select value={formData.type} onValueChange={(value: 'income' | 'expense') => setFormData({...formData, type: value, category: ''})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -304,57 +375,155 @@ const TransactionManager = () => {
                     </SelectContent>
                   </Select>
                 </div>
-
+                
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
+                  <Label htmlFor="amount">Amount *</Label>
                   <Input
                     id="amount"
                     type="number"
                     step="0.01"
-                    min="0"
                     value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
                     placeholder="0.00"
                     required
                   />
                 </div>
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="category">Category *</Label>
+                <Select value={formData.category} onValueChange={(value: string) => setFormData({...formData, category: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories[formData.type].map((category) => (
+                      <SelectItem key={category} value={category}>
+                        <span className="flex items-center">
+                          <span className="mr-2">{getCategoryIcon(category)}</span>
+                          {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.category === 'lend' && (
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories[formData.type].map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {getCategoryIcon(category)} {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="lendTo">Person Name</Label>
+                  {!isAddingPerson ? (
+                    <div className="flex gap-2">
+                      <Select
+                        value={formData.lendTo}
+                        onValueChange={(value) => setFormData({ ...formData, lendTo: value })}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select or add person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedPeople.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              No saved people. Click + to add.
+                            </div>
+                          ) : (
+                            savedPeople.map((person, index) => (
+                              <SelectItem key={index} value={person}>
+                                {person}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          if (formData.lendTo) {
+                            // If there's a selected person, save it
+                            setNewPersonName(formData.lendTo);
+                            setIsAddingPerson(true);
+                          } else {
+                            // Otherwise, just switch to add mode
+                            setIsAddingPerson(true);
+                          }
+                        }}
+                        title="Add new person"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={newPersonName}
+                        onChange={(e) => setNewPersonName(e.target.value)}
+                        placeholder="Enter person name"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddPerson();
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="icon"
+                        onClick={handleAddPerson}
+                        disabled={!newPersonName.trim()}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setIsAddingPerson(false);
+                          setNewPersonName('');
+                        }}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  )}
+                  {!isAddingPerson && savedPeople.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Click the + button to add people you lend money to
+                    </p>
+                  )}
                 </div>
+              )}
 
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Enter description"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date">Date *</Label>
                   <Input
                     id="date"
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="paymentMethod">Payment Method</Label>
-                  <Select
-                    value={formData.paymentMethod}
-                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                  >
+                  <Select value={formData.paymentMethod} onValueChange={(value: string) => setFormData({...formData, paymentMethod: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -367,87 +536,71 @@ const TransactionManager = () => {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location (Optional)</Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="Where did this happen?"
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Describe this transaction..."
-                  required
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  placeholder="Enter location"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tags">Tags (Optional)</Label>
+                <Label htmlFor="tags">Tags</Label>
                 <Input
                   id="tags"
                   value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  onChange={(e) => setFormData({...formData, tags: e.target.value})}
                   placeholder="Enter tags separated by commas"
                 />
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="recurring"
-                    checked={formData.recurring.isRecurring}
-                    onCheckedChange={(checked) => 
-                      setFormData({ 
-                        ...formData, 
-                        recurring: { ...formData.recurring, isRecurring: checked }
-                      })
-                    }
-                  />
-                  <Label htmlFor="recurring" className="text-sm">This is a recurring transaction</Label>
-                </div>
-
-                {formData.recurring.isRecurring && (
-                  <div className="space-y-2">
-                    <Label htmlFor="frequency">Frequency</Label>
-                    <Select
-                      value={formData.recurring.frequency}
-                      onValueChange={(value) => 
-                        setFormData({ 
-                          ...formData, 
-                          recurring: { ...formData.recurring, frequency: value }
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {frequencies.map((frequency) => (
-                          <SelectItem key={frequency} value={frequency}>
-                            {frequency.charAt(0).toUpperCase() + frequency.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="recurring"
+                  checked={formData.recurring.isRecurring}
+                  onCheckedChange={(checked) => 
+                    setFormData({ 
+                      ...formData, 
+                      recurring: { ...formData.recurring, isRecurring: checked }
+                    })
+                  }
+                />
+                <Label htmlFor="recurring">This is a recurring transaction</Label>
               </div>
 
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
+              {formData.recurring.isRecurring && (
+                <div className="space-y-2 ml-8">
+                  <Label htmlFor="frequency">Frequency</Label>
+                  <Select value={formData.recurring.frequency} onValueChange={(value: string) => 
+                    setFormData({ 
+                      ...formData, 
+                      recurring: { ...formData.recurring, frequency: value }
+                    })
+                  }>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {frequencies.map((freq) => (
+                        <SelectItem key={freq} value={freq}>
+                          {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="w-full sm:w-auto">
-                  {editingTransaction ? 'Update Transaction' : 'Add Transaction'}
+                <Button type="submit">
+                  {editingTransaction ? 'Update' : 'Add'} Transaction
                 </Button>
               </DialogFooter>
             </form>
@@ -456,92 +609,143 @@ const TransactionManager = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Total Income</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">{formatCurrency(stats.totalIncome)}</p>
-                <p className="text-xs text-muted-foreground hidden sm:block">{stats.incomeCount} transactions</p>
-              </div>
-              <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalIncome)}</div>
+            <p className="text-xs text-muted-foreground">{stats.incomeCount} transactions</p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Total Expenses</p>
-                <p className="text-lg sm:text-2xl font-bold text-red-600">{formatCurrency(stats.totalExpenses)}</p>
-                <p className="text-xs text-muted-foreground hidden sm:block">{stats.expenseCount} transactions</p>
-              </div>
-              <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(stats.totalExpenses)}</div>
+            <p className="text-xs text-muted-foreground">{stats.expenseCount} transactions</p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Net Amount</p>
-                <p className={`text-lg sm:text-2xl font-bold ${stats.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(stats.netAmount)}
-                </p>
-                <p className="text-xs text-muted-foreground hidden sm:block">Income - Expenses</p>
-              </div>
-              <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Amount</CardTitle>
+            <DollarSign className="h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${stats.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(stats.netAmount)}
             </div>
+            <p className="text-xs text-muted-foreground">Income - Expenses</p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Total Transactions</p>
-                <p className="text-lg sm:text-2xl font-bold">{stats.incomeCount + stats.expenseCount}</p>
-                <p className="text-xs text-muted-foreground hidden sm:block">All time</p>
-              </div>
-              <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+            <CreditCard className="h-4 w-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.incomeCount + stats.expenseCount}</div>
+            <p className="text-xs text-muted-foreground">All transactions</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-3 sm:p-4">
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>Filter and search your transactions</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search transactions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              <Select value={filterType} onValueChange={(value: 'all' | 'income' | 'expense') => setFilterType(value)}>
+                <SelectTrigger className="w-full sm:w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowDateFilters(!showDateFilters)}
+                className="w-full sm:w-auto"
+              >
+                <Calendar className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Date Filter</span>
+                <span className="xs:inline">Dates</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={resetFilters}
+                className="w-full sm:w-auto"
+              >
+                Reset
+              </Button>
+              
+              <Button variant="outline" size="sm" onClick={fetchTransactions} className="w-full sm:w-auto">
+                <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Refresh</span>
+              </Button>
+            </div>
+          </div>
+          
+          {showDateFilters && (
+            <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t">
+              <div className="flex-1">
+                <Label htmlFor="startDate" className="text-xs">Start Date</Label>
                 <Input
-                  placeholder="Search transactions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
                 />
               </div>
+              <div className="flex-1">
+                <Label htmlFor="endDate" className="text-xs">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fetchTransactions}
+                  className="w-full"
+                >
+                  Apply Dates
+                </Button>
+              </div>
             </div>
-            <Select value={filterType} onValueChange={(value: 'all' | 'income' | 'expense') => setFilterType(value)}>
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={fetchTransactions} className="w-full sm:w-auto">
-              <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Refresh</span>
-            </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
 

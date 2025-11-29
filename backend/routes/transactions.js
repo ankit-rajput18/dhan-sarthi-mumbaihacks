@@ -106,6 +106,7 @@ router.post('/', [
   body('date').optional().isISO8601().withMessage('Date must be valid ISO date'),
   body('tags').optional().isArray().withMessage('Tags must be an array'),
   body('location').optional().isString().withMessage('Location must be a string'),
+  body('lendTo').optional().isString().withMessage('LendTo must be a string'),
   body('paymentMethod').optional().isIn(['cash', 'card', 'upi', 'netbanking', 'wallet', 'other']).withMessage('Invalid payment method'),
   body('recurring.isRecurring').optional().isBoolean().withMessage('Recurring must be boolean'),
   body('recurring.frequency').optional().isIn(['daily', 'weekly', 'monthly', 'yearly']).withMessage('Invalid recurring frequency')
@@ -128,6 +129,7 @@ router.post('/', [
       date,
       tags,
       location,
+      lendTo,
       paymentMethod,
       recurring
     } = req.body;
@@ -142,6 +144,7 @@ router.post('/', [
       date: date ? new Date(date) : new Date(),
       tags: tags || [],
       location,
+      lendTo,
       paymentMethod: paymentMethod || 'cash',
       recurring: recurring || { isRecurring: false }
     });
@@ -227,6 +230,7 @@ router.put('/:id', [
   body('date').optional().isISO8601().withMessage('Date must be valid ISO date'),
   body('tags').optional().isArray().withMessage('Tags must be an array'),
   body('location').optional().isString().withMessage('Location must be a string'),
+  body('lendTo').optional().isString().withMessage('LendTo must be a string'),
   body('paymentMethod').optional().isIn(['cash', 'card', 'upi', 'netbanking', 'wallet', 'other']).withMessage('Invalid payment method')
 ], async (req, res) => {
   try {
@@ -257,6 +261,7 @@ router.put('/:id', [
     if (req.body.date) updateData.date = new Date(req.body.date);
     if (req.body.tags) updateData.tags = req.body.tags;
     if (req.body.location !== undefined) updateData.location = req.body.location;
+    if (req.body.lendTo !== undefined) updateData.lendTo = req.body.lendTo;
     if (req.body.paymentMethod) updateData.paymentMethod = req.body.paymentMethod;
 
     const updatedTransaction = await Transaction.findByIdAndUpdate(

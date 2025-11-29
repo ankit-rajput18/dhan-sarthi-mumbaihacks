@@ -369,45 +369,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6 sm:space-y-8">
-          {/* Savings Goal */}
-          
-
-          {/* AI Insights */}
-          <Card className="shadow-card border-0">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 mobile-subtitle">
-                <Bot className="w-5 h-5 text-primary" />
-                AI Money Insights
-              </CardTitle>
-              <CardDescription className="mobile-caption">Personalized tips from your AI mentor</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {aiInsights.map((insight, index) => (
-                <div key={index} className="flex gap-3 p-3 rounded-lg bg-surface/50">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    insight.type === 'warning' ? 'bg-warning/10' :
-                    insight.type === 'success' ? 'bg-success/10' : 'bg-primary/10'
-                  }`}>
-                    <insight.icon className={`w-4 h-4 ${
-                      insight.type === 'warning' ? 'text-warning' :
-                      insight.type === 'success' ? 'text-success' : 'text-primary'
-                    }`} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="mobile-caption">{insight.text}</p>
-                    {insight.actionable && (
-                      <Button variant="ghost" size="sm" className="p-0 h-auto text-primary mt-2 mobile-caption">
-                        Take Action →
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+        
       </div>
     </div>
   );

@@ -56,6 +56,7 @@ import {
 import { loanAPI, transactionAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Edit, Trash2 } from "lucide-react";
+import LendingRecommendations from "@/components/LendingRecommendations";
 
 const LoanAnalyzer = () => {
   const [showAddLoan, setShowAddLoan] = useState(false);
@@ -573,6 +574,22 @@ const LoanAnalyzer = () => {
           and reduce tenure by 8 months.
         </AlertDescription>
       </Alert>
+
+      {/* Lending Recommendations */}
+      <Card className="shadow-card border-0">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-primary" />
+            AI-Powered Lending Recommendations
+          </CardTitle>
+          <CardDescription>
+            Personalized insights to optimize your lending strategy
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LendingRecommendations />
+        </CardContent>
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Column - Summary & Analysis */}

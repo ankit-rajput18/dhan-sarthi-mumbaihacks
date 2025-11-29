@@ -81,6 +81,7 @@ app.use('/api/ai', require('./routes/ai'));
 app.use('/api/memory', require('./routes/memory'));
 app.use('/api/tax', require('./routes/tax'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/lend-people', require('./routes/lendPerson'));
 
 // Serve frontend static files in production
 if (process.env.NODE_ENV === 'production') {

@@ -429,36 +429,81 @@ export default function ProfileEditModal({ open, onClose }: ProfileEditModalProp
             <div className="space-y-4">
               <Label>Section 80C Investments (Max ₹1.5L)</Label>
               <div className="space-y-2">
-                <Input
-                  type="number"
-                  placeholder="PPF (₹)"
-                  value={formData.investments80C.ppf}
-                  onChange={(e) => updateInvestment('ppf', e.target.value)}
-                />
-                <Input
-                  type="number"
-                  placeholder="ELSS Mutual Funds (₹)"
-                  value={formData.investments80C.elss}
-                  onChange={(e) => updateInvestment('elss', e.target.value)}
-                />
-                <Input
-                  type="number"
-                  placeholder="Life Insurance Premium (₹)"
-                  value={formData.investments80C.lifeInsurance}
-                  onChange={(e) => updateInvestment('lifeInsurance', e.target.value)}
-                />
-                <Input
-                  type="number"
-                  placeholder="EPF Contribution (₹)"
-                  value={formData.investments80C.epf}
-                  onChange={(e) => updateInvestment('epf', e.target.value)}
-                />
-                <Input
-                  type="number"
-                  placeholder="NPS (₹)"
-                  value={formData.investments80C.nps}
-                  onChange={(e) => updateInvestment('nps', e.target.value)}
-                />
+                <div className="relative mb-1.5">
+                  <Input
+                    type="number"
+                    value={formData.investments80C.ppf}
+                    onChange={(e) => updateInvestment('ppf', e.target.value)}
+                    className="peer"
+                    placeholder=" "
+                  />
+                  <Label className={`absolute left-3 top-3 transition-all duration-200 ease-in-out pointer-events-none 
+                    peer-focus:top-0 peer-focus:text-xs peer-focus:-translate-y-2.5
+                    peer-placeholder-shown:top-3 peer-placeholder-shown:text-base
+                    ${formData.investments80C.ppf ? 'top-0 text-xs -translate-y-2.5' : ''}`}>
+                    PPF (₹)
+                  </Label>
+                </div>
+                <div className="relative mb-1.5">
+                  <Input
+                    type="number"
+                    value={formData.investments80C.elss}
+                    onChange={(e) => updateInvestment('elss', e.target.value)}
+                    className="peer"
+                    placeholder=" "
+                  />
+                  <Label className={`absolute left-3 top-3 transition-all duration-200 ease-in-out pointer-events-none 
+                    peer-focus:top-0 peer-focus:text-xs peer-focus:-translate-y-2.5
+                    peer-placeholder-shown:top-3 peer-placeholder-shown:text-base
+                    ${formData.investments80C.elss ? 'top-0 text-xs -translate-y-2.5' : ''}`}>
+                    ELSS Mutual Funds (₹)
+                  </Label>
+                </div>
+                <div className="relative mb-1.5">
+                  <Input
+                    type="number"
+                    value={formData.investments80C.lifeInsurance}
+                    onChange={(e) => updateInvestment('lifeInsurance', e.target.value)}
+                    className="peer"
+                    placeholder=" "
+                  />
+                  <Label className={`absolute left-3 top-3 transition-all duration-200 ease-in-out pointer-events-none 
+                    peer-focus:top-0 peer-focus:text-xs peer-focus:-translate-y-2.5
+                    peer-placeholder-shown:top-3 peer-placeholder-shown:text-base
+                    ${formData.investments80C.lifeInsurance ? 'top-0 text-xs -translate-y-2.5' : ''}`}>
+                    Life Insurance Premium (₹)
+                  </Label>
+                </div>
+                <div className="relative mb-1.5">
+                  <Input
+                    type="number"
+                    value={formData.investments80C.epf}
+                    onChange={(e) => updateInvestment('epf', e.target.value)}
+                    className="peer"
+                    placeholder=" "
+                  />
+                  <Label className={`absolute left-3 top-3 transition-all duration-200 ease-in-out pointer-events-none 
+                    peer-focus:top-0 peer-focus:text-xs peer-focus:-translate-y-2.5
+                    peer-placeholder-shown:top-3 peer-placeholder-shown:text-base
+                    ${formData.investments80C.epf ? 'top-0 text-xs -translate-y-2.5' : ''}`}>
+                    EPF Contribution (₹)
+                  </Label>
+                </div>
+                <div className="relative mb-1.5">
+                  <Input
+                    type="number"
+                    value={formData.investments80C.nps}
+                    onChange={(e) => updateInvestment('nps', e.target.value)}
+                    className="peer"
+                    placeholder=" "
+                  />
+                  <Label className={`absolute left-3 top-3 transition-all duration-200 ease-in-out pointer-events-none 
+                    peer-focus:top-0 peer-focus:text-xs peer-focus:-translate-y-2.5
+                    peer-placeholder-shown:top-3 peer-placeholder-shown:text-base
+                    ${formData.investments80C.nps ? 'top-0 text-xs -translate-y-2.5' : ''}`}>
+                    NPS (₹)
+                  </Label>
+                </div>
               </div>
             </div>
           </TabsContent>

@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const ChatMessage = require('../models/ChatMessage');
 const { getAIResponse, generateInsights } = require('../services/aiService');
+const { generateLendingRecommendations } = require('../services/lendingAIService');
 
 /**
  * @route   POST /api/ai/chat
@@ -179,6 +180,31 @@ router.delete('/message/:timestamp', auth, async (req, res) => {
       success: false,
       message: 'Failed to delete message',
       error: error.message
+    });
+  }
+});
+
+/**
+ * @route   POST /api/ai/lending-recommendations
+ * @desc    Get AI-powered lending recommendations
+ * @access  Private
+ */
+router.post('/lending-recommendations', auth, async (req, res) => {
+  try {
+    const result = await generateLendingRecommendations(req.user._id);
+    
+    res.json({
+      success: true,
+      recommendations: result.recommendations,
+      metrics: result.lendingMetrics,
+      userProfile: result.userProfile
+    });
+  } catch (error) {
+    console.error('Lending recommendations error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to generate lending recommendations',
+      error: error.message 
     });
   }
 });

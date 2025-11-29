@@ -24,7 +24,7 @@ const transactionSchema = new mongoose.Schema({
       'salary', 'freelance', 'investment', 'business', 'other-income',
       // Expense categories
       'food', 'transport', 'shopping', 'bills', 'entertainment', 
-      'healthcare', 'education', 'travel', 'other-expense'
+      'healthcare', 'education', 'travel', 'lend', 'other-expense'
     ]
   },
   description: {
@@ -61,6 +61,10 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     enum: ['cash', 'card', 'upi', 'netbanking', 'wallet', 'other'],
     default: 'cash'
+  },
+  lendTo: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

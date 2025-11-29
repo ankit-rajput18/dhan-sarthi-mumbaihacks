@@ -1,41 +1,47 @@
-import { useState, useEffect } from "react";
-import React from "react";
-import { transactionAPI, budgetAPI } from "@/lib/api"; // Import the transaction and budget APIs
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { 
-  Calendar as CalendarIcon, 
   Plus, 
+  Calendar as CalendarIcon, 
   ChevronLeft, 
   ChevronRight,
-  TrendingUp,
-  TrendingDown,
-  Utensils,
-  Car,
-  ShoppingBag,
-  Zap,
-  Gamepad2,
-  MoreHorizontal,
   Edit,
-  Trash2,
-  X,
-  Clock,
-  Calendar,
-  AlertCircle,
-  Target, // Add Target icon for budget
-  CheckCircle // Add check icon for confirmation
+  Trash2
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner"; // Import toast for notifications
+import { transactionAPI, lendPersonAPI } from '@/lib/api';
+import { toast } from 'sonner';
+import TransactionModal from '@/components/TransactionModal';
 
+// Define the full Transaction interface to match what TransactionModal expects
 interface Transaction {
-  id: string; // Changed to string to match MongoDB _id
+  _id: string;
+  type: 'income' | 'expense';
+  amount: number;
+  category: string;
+  description: string;
+  date: string;
+  tags: string[];
+  location?: string;
+  paymentMethod: string;
+  recurring: {
+    isRecurring: boolean;
+    frequency: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Define a simplified interface for our calendar view
+interface CalendarTransaction {
+  id: string;
   amount: number;
   category: string;
   description: string;
@@ -44,68 +50,74 @@ interface Transaction {
   createdAt: Date;
 }
 
-interface TransactionFormData {
-  amount: string;
-  category: string;
-  description: string;
-  date: string;
-  time: string;
-}
-
-interface BudgetCategory {
-  category: string;
-  amount: number;
-  icon: any;
-  color: string;
-  label: string;
-}
-
 const ExpenseCalendar = () => {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [showAddExpense, setShowAddExpense] = useState(false);
-  const [showEditExpense, setShowEditExpense] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showSetBudget, setShowSetBudget] = useState(false); // Add state for budget dialog
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
-  const [quickAddAmount, setQuickAddAmount] = useState("");
-  const [formData, setFormData] = useState<TransactionFormData>({
-    amount: "",
-    category: "",
-    description: "",
-    date: "",
-    time: ""
-  });
-  // Add state for budget data
-  const [budgetData, setBudgetData] = useState<BudgetCategory[]>([
-    { category: "food", amount: 0, icon: Utensils, color: "bg-red-500", label: "Food" },
-    { category: "transport", amount: 0, icon: Car, color: "bg-orange-500", label: "Transport" },
-    { category: "shopping", amount: 0, icon: ShoppingBag, color: "bg-yellow-500", label: "Shopping" },
-    { category: "bills", amount: 0, icon: Zap, color: "bg-green-500", label: "Bills" },
-    { category: "entertainment", amount: 0, icon: Gamepad2, color: "bg-blue-500", label: "Entertainment" }
-  ]);
-  const [hasBudget, setHasBudget] = useState(false); // Track if budget exists for current month
-  const [transactions, setTransactions] = useState<Transaction[]>([]); // Will be populated from API
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [transactions, setTransactions] = useState<CalendarTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // State for TransactionModal
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [transactionModalMode, setTransactionModalMode] = useState<'add' | 'edit'>('add');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  const categoryIcons: { [key: string]: { icon: any; color: string; label: string } } = {
-    food: { icon: Utensils, color: "bg-red-500", label: "Food" },
-    transport: { icon: Car, color: "bg-orange-500", label: "Transport" },
-    shopping: { icon: ShoppingBag, color: "bg-yellow-500", label: "Shopping" },
-    bills: { icon: Zap, color: "bg-green-500", label: "Bills" },
-    entertainment: { icon: Gamepad2, color: "bg-blue-500", label: "Entertainment" }
-  };
+  // Keep these states for the people management functionality
+  const [savedPeople, setSavedPeople] = useState<string[]>([]);
+  const [loadingPeople, setLoadingPeople] = useState(false);
+  const [newPersonName, setNewPersonName] = useState("");
+  const [isAddingPerson, setIsAddingPerson] = useState(false);
+  
+  const [quickAddAmount, setQuickAddAmount] = useState("");
 
-  // Fetch transactions from API when component mounts
+  // Categories for expenses
+  const expenseCategories = [
+    "food", "transport", "shopping", "bills", "entertainment", 
+    "healthcare", "education", "travel", "lend", "other-expense"
+  ];
+
+  // Payment methods
+  const paymentMethods = ["cash", "card", "upi", "netbanking", "wallet", "other"];
+
+  // Frequencies for recurring expenses
+  const frequencies = ["daily", "weekly", "monthly", "yearly"];
+
   useEffect(() => {
     fetchTransactions();
+    fetchPeople();
   }, []);
+
+  const fetchPeople = async () => {
+    try {
+      setLoadingPeople(true);
+      const response = await lendPersonAPI.getAll();
+      setSavedPeople(response.people || []);
+    } catch (error) {
+      console.error('Error fetching people:', error);
+    } finally {
+      setLoadingPeople(false);
+    }
+  };
+
+  const handleAddPerson = async () => {
+    if (newPersonName.trim()) {
+      try {
+        await lendPersonAPI.add(newPersonName.trim());
+        await fetchPeople();
+        setNewPersonName('');
+        setIsAddingPerson(false);
+        toast.success('Person added successfully');
+      } catch (error: any) {
+        console.error('Error adding person:', error);
+        toast.error(error.message || 'Failed to add person');
+      }
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await transactionAPI.getAll({ type: 'expense' });
+      // Fetch all expense transactions with a higher limit to get more data
+      const response = await transactionAPI.getAll({ type: 'expense', limit: 100 });
       // Transform API response to match component's expected format
       // Use local date formatting instead of UTC to avoid timezone issues
       const transformedTransactions = response.transactions.map((transaction: any) => {
@@ -172,66 +184,6 @@ const ExpenseCalendar = () => {
     return getDateKey(new Date());
   };
 
-  // Initialize form with selected date
-  useEffect(() => {
-    if (selectedDate) {
-      setFormData(prev => ({
-        ...prev,
-        date: getDateKey(selectedDate),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }));
-    }
-  }, [selectedDate]);
-
-  // Reset form when dialog closes
-  useEffect(() => {
-    if (!showAddExpense && !showEditExpense) {
-      setFormData({
-        amount: "",
-        category: "",
-        description: "",
-        date: getCurrentDateKey(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      });
-      setEditingTransaction(null);
-    }
-  }, [showAddExpense, showEditExpense]);
-
-  // Load budget data when current month changes
-  useEffect(() => {
-    const loadBudgetData = async () => {
-      try {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
-        
-        const response = await budgetAPI.getByMonth(year, month);
-        if (response && response.budget) {
-          // Update budgetData with values from API
-          const updatedBudgetData = budgetData.map(category => {
-            const budgetCategory = response.budget.categories.find((c: any) => c.name === category.category);
-            return {
-              ...category,
-              amount: budgetCategory ? budgetCategory.amount : 0
-            };
-          });
-          setBudgetData(updatedBudgetData);
-          setHasBudget(true);
-        } else {
-          setHasBudget(false);
-        }
-      } catch (error: any) {
-        // If budget not found, that's okay - we'll use default values
-        if (error.message !== "Budget not found") {
-          console.error("Error loading budget:", error);
-          toast.error("Failed to load budget data");
-        }
-        setHasBudget(false);
-      }
-    };
-    
-    loadBudgetData();
-  }, [currentMonth]);
-
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -297,141 +249,97 @@ const ExpenseCalendar = () => {
     });
   };
 
-  // CRUD Operations
-  const handleAddTransaction = async () => {
-    if (!formData.amount || !formData.category || !formData.description) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
+  // Create a function to handle opening the modal for adding a new expense
+  const openAddExpenseModal = () => {
+    setTransactionModalMode('add');
+    setEditingTransaction(null);
+    setIsTransactionModalOpen(true);
+  };
 
+  // Create a function to handle opening the modal for editing an expense
+  const openEditExpenseModal = async (calendarTransaction: CalendarTransaction) => {
     try {
-      // Fix the date/time handling to ensure proper ISO format
-      const dateTimeString = `${formData.date}T${formData.time}`;
-      const date = new Date(dateTimeString);
-      
-      // Check if the date is valid
-      if (isNaN(date.getTime())) {
-        toast.error("Invalid date or time format");
-        return;
-      }
-
-      const transactionData = {
-        type: 'expense' as const,
-        amount: parseFloat(formData.amount),
-        category: formData.category,
-        description: formData.description,
-        date: date.toISOString()
-      };
-
-      const response = await transactionAPI.create(transactionData);
-      toast.success("Expense added successfully");
-      
-      // Add the new transaction to the state
-      const newTransaction: Transaction = {
-        id: response.transaction._id,
-        amount: response.transaction.amount,
-        category: response.transaction.category,
-        description: response.transaction.description,
-        date: getDateKey(new Date(response.transaction.date)), // Use local date instead of UTC
-        time: new Date(response.transaction.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        createdAt: new Date(response.transaction.createdAt)
-      };
-
-      setTransactions(prev => [...prev, newTransaction]);
-      setShowAddExpense(false);
-      
-      // Update selected date if adding to a different date
-      if (selectedDate && getDateKey(selectedDate) !== formData.date) {
-        setSelectedDate(new Date(formData.date));
-      }
-    } catch (error: any) {
-      console.error("Error adding transaction:", error);
-      toast.error(error.message || "Failed to add expense");
+      // Fetch the full transaction details for editing
+      const response = await transactionAPI.getById(calendarTransaction.id);
+      setTransactionModalMode('edit');
+      setEditingTransaction(response.transaction);
+      setIsTransactionModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching transaction details:", error);
+      toast.error("Failed to load transaction details");
     }
   };
 
-  const handleEditTransaction = async () => {
-    if (!editingTransaction || !formData.amount || !formData.category || !formData.description) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
+  // Handle successful transaction submission
+  const handleTransactionSubmit = async (transactionData: any) => {
     try {
-      // Fix the date/time handling to ensure proper ISO format
-      const dateTimeString = `${formData.date}T${formData.time}`;
-      const date = new Date(dateTimeString);
-      
-      // Check if the date is valid
-      if (isNaN(date.getTime())) {
-        toast.error("Invalid date or time format");
-        return;
+      if (transactionModalMode === 'add') {
+        // Ensure type is set to expense for calendar
+        transactionData.type = 'expense';
+        
+        const response = await transactionAPI.create(transactionData);
+        toast.success("Expense added successfully");
+        
+        // Add the new transaction to the state
+        const newTransaction: CalendarTransaction = {
+          id: response.transaction._id,
+          amount: response.transaction.amount,
+          category: response.transaction.category,
+          description: response.transaction.description,
+          date: getDateKey(new Date(response.transaction.date)),
+          time: new Date(response.transaction.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          createdAt: new Date(response.transaction.createdAt)
+        };
+
+        setTransactions(prev => [...prev, newTransaction]);
+        
+        // Update selected date if adding to a different date
+        if (selectedDate && transactionData.date) {
+          const transactionDate = new Date(transactionData.date);
+          if (getDateKey(selectedDate) !== getDateKey(transactionDate)) {
+            setSelectedDate(transactionDate);
+          }
+        }
+      } else if (editingTransaction) {
+        const response = await transactionAPI.update(editingTransaction._id, transactionData);
+        toast.success("Expense updated successfully");
+
+        // Update the transaction in the state
+        const updatedTransaction: CalendarTransaction = {
+          id: response.transaction._id,
+          amount: response.transaction.amount,
+          category: response.transaction.category,
+          description: response.transaction.description,
+          date: getDateKey(new Date(response.transaction.date)),
+          time: new Date(response.transaction.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          createdAt: new Date(response.transaction.createdAt)
+        };
+
+        setTransactions(prev => 
+          prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t)
+        );
       }
 
-      const transactionData = {
-        type: 'expense' as const,
-        amount: parseFloat(formData.amount),
-        category: formData.category,
-        description: formData.description,
-        date: date.toISOString()
-      };
-
-      await transactionAPI.update(editingTransaction.id, transactionData);
-      toast.success("Expense updated successfully");
-      
-      // Update the transaction in the state
-      setTransactions(prev => prev.map(t => 
-        t.id === editingTransaction.id 
-          ? { 
-              ...t, 
-              amount: parseFloat(formData.amount),
-              category: formData.category,
-              description: formData.description,
-              date: formData.date,
-              time: formData.time
-            }
-          : t
-      ));
-
-      setShowEditExpense(false);
+      // Close the modal
+      setIsTransactionModalOpen(false);
       setEditingTransaction(null);
     } catch (error: any) {
-      console.error("Error updating transaction:", error);
-      toast.error(error.message || "Failed to update expense");
+      console.error("Error saving transaction:", error);
+      toast.error(error.message || "Failed to save expense");
     }
   };
 
-  const handleDeleteTransaction = async () => {
-    if (!deletingTransaction) return;
-
+  const handleDeleteTransaction = async (transactionId: string) => {
     try {
-      await transactionAPI.delete(deletingTransaction.id);
+      await transactionAPI.delete(transactionId);
       toast.success("Expense deleted successfully");
       
       // Remove the transaction from the state
-      setTransactions(prev => prev.filter(t => t.id !== deletingTransaction.id));
-      setShowDeleteConfirm(false);
-      setDeletingTransaction(null);
-    } catch (error) {
+      setTransactions(prev => prev.filter(t => t.id !== transactionId));
+    } catch (error: any) {
       console.error("Error deleting transaction:", error);
-      toast.error("Failed to delete expense");
+      toast.error(error.message || "Failed to delete expense");
     }
-  };
-
-  const openEditDialog = (transaction: Transaction) => {
-    setEditingTransaction(transaction);
-    setFormData({
-      amount: transaction.amount.toString(),
-      category: transaction.category,
-      description: transaction.description,
-      date: transaction.date,
-      time: transaction.time
-    });
-    setShowEditExpense(true);
-  };
-
-  const openDeleteDialog = (transaction: Transaction) => {
-    setDeletingTransaction(transaction);
-    setShowDeleteConfirm(true);
   };
 
   const handleQuickAdd = async (date: Date) => {
@@ -450,7 +358,7 @@ const ExpenseCalendar = () => {
         toast.success("Expense added successfully");
         
         // Add the new transaction to the state
-        const newTransaction: Transaction = {
+        const newTransaction: CalendarTransaction = {
           id: response.transaction._id,
           amount: response.transaction.amount,
           category: response.transaction.category,
@@ -469,368 +377,217 @@ const ExpenseCalendar = () => {
         }
       } catch (error: any) {
         console.error("Error adding quick transaction:", error);
-        toast.error(error.message || "Failed to add expense");
+        toast.error(error.message || "Failed to add quick expense");
       }
     }
   };
 
-  const handleFormChange = (field: keyof TransactionFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const getCategoryColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      food: 'bg-red-100 text-red-800',
+      transport: 'bg-orange-100 text-orange-800',
+      shopping: 'bg-yellow-100 text-yellow-800',
+      bills: 'bg-green-100 text-green-800',
+      entertainment: 'bg-blue-100 text-blue-800',
+      healthcare: 'bg-pink-100 text-pink-800',
+      education: 'bg-purple-100 text-purple-800',
+      travel: 'bg-cyan-100 text-cyan-800',
+      lend: 'bg-indigo-100 text-indigo-800',
+      'other-expense': 'bg-gray-100 text-gray-800'
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: string } = {
+      food: '🍽️',
+      transport: '🚗',
+      shopping: '🛍️',
+      bills: '📄',
+      entertainment: '🎬',
+      healthcare: '🏥',
+      education: '📚',
+      travel: '✈️',
+      lend: '🤝',
+      'other-expense': '📦'
+    };
+    return icons[category] || '💳';
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Expense Calendar</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">Visual overview of your daily spending patterns</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {/* Add Budget Button - More interactive with visual feedback */}
-          <Dialog open={showSetBudget} onOpenChange={setShowSetBudget}>
-            <DialogTrigger asChild>
+      <div>
+        <h1 className="text-3xl font-bold">Expense Calendar</h1>
+        <p className="text-muted-foreground">Track your expenses by date</p>
+      </div>
+
+      <Card className="shadow-card border-0">
+        <CardHeader>
+          <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
               <Button 
-                variant={hasBudget ? "default" : "hero"} 
-                className={`gap-2 transition-all duration-300 ${hasBudget ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                size="sm"
+                variant="outline" 
+                size="icon" 
+                onClick={() => navigateMonth('prev')}
+                aria-label="Previous month"
               >
-                {hasBudget ? (
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h2 className="text-xl font-semibold">
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </h2>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => navigateMonth('next')}
+                aria-label="Next month"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Total:</span>
+              <span className="text-lg font-bold text-red-600">
+                ₹{monthTotal.toLocaleString()}
+              </span>
+            </div>
+          </CardTitle>
+          <CardDescription>
+            Click on a date to view or add expenses
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-1 mb-4">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                {day}
+              </div>
+            ))}
+            {getDaysInMonth(currentMonth).map((day, index) => (
+              <div 
+                key={index} 
+                className={`min-h-20 p-1 border rounded-lg cursor-pointer transition-colors ${
+                  day 
+                    ? selectedDate && getDateKey(day) === getDateKey(selectedDate)
+                      ? 'bg-primary/10 border-primary'
+                      : 'hover:bg-muted'
+                    : 'bg-muted/50'
+                }`}
+                onClick={() => day && setSelectedDate(day)}
+              >
+                {day && (
                   <>
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="hidden xs:inline">Budget Set</span>
-                  </>
-                ) : (
-                  <>
-                    <Target className="w-4 h-4" />
-                    <span className="hidden xs:inline">Set Budget</span>
+                    <div className="text-right text-sm p-1">
+                      {day.getDate()}
+                    </div>
+                    <div className="text-xs p-1 space-y-1">
+                      {getTransactionsForDate(day).slice(0, 2).map(transaction => (
+                        <div 
+                          key={transaction.id} 
+                          className="truncate px-1 py-0.5 bg-red-50 text-red-700 rounded"
+                        >
+                          ₹{transaction.amount}
+                        </div>
+                      ))}
+                      {getTransactionsForDate(day).length > 2 && (
+                        <div className="text-xs text-muted-foreground px-1">
+                          +{getTransactionsForDate(day).length - 2} more
+                        </div>
+                      )}
+                      {getTransactionsForDate(day).length > 0 && (
+                        <div className="font-semibold text-xs px-1">
+                          ₹{getDayTotal(day).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <Target className="w-5 h-5 text-primary" />
-                  Monthly Budget
-                </DialogTitle>
-                <DialogDescription className="text-sm">
-                  Set your budget limits for each category for {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                {budgetData.map((budget, index) => (
-                  <div key={budget.category} className="grid grid-cols-3 items-center gap-3 p-3 rounded-lg bg-surface/50 hover:bg-surface/70 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-lg ${budget.color} flex items-center justify-center`}>
-                        <budget.icon className="w-4 h-4 text-white" />
-                      </div>
-                      <Label htmlFor={`budget-${budget.category}`} className="font-medium text-sm">
-                        {budget.label}
-                      </Label>
-                    </div>
-                    <div className="col-span-2">
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                        <Input
-                          id={`budget-${budget.category}`}
-                          type="number"
-                          placeholder="0"
-                          className="pl-8 text-sm"
-                          value={budget.amount || ""}
-                          onChange={(e) => {
-                            const newBudgetData = [...budgetData];
-                            newBudgetData[index].amount = Number(e.target.value);
-                            setBudgetData(newBudgetData);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
-                  <Button variant="outline" onClick={() => setShowSetBudget(false)} className="w-full sm:w-auto text-sm">
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="hero" 
-                    onClick={async () => {
-                      try {
-                        const year = currentMonth.getFullYear();
-                        const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
-                        
-                        // Format data for API
-                        const categories = budgetData.map(budget => ({
-                          name: budget.category,
-                          amount: budget.amount
-                        }));
-                        
-                        await budgetAPI.save({ month, year, categories });
-                        setHasBudget(true);
-                        toast.success("Budget updated successfully");
-                        setShowSetBudget(false);
-                      } catch (error) {
-                        console.error("Error saving budget:", error);
-                        toast.error("Failed to save budget");
-                      }
-                    }}
-                    className="w-full sm:w-auto text-sm"
-                  >
-                    Save Budget
-                  </Button>
-                </div>
               </div>
-            </DialogContent>
-          </Dialog>
-          
-          {/* Existing Add Expense Button */}
-          <Dialog open={showAddExpense} onOpenChange={setShowAddExpense}>
-            <DialogTrigger asChild>
-              <Button variant="hero" className="gap-2" size="sm">
-                <Plus className="w-4 h-4" />
-                <span className="hidden xs:inline">Add Expense</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-              <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl">Add New Expense</DialogTitle>
-                <DialogDescription className="text-sm">Record a new expense for the selected date</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-sm">Amount (₹)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      placeholder="0"
-                      value={formData.amount}
-                      onChange={(e) => handleFormChange('amount', e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category" className="text-sm">Category</Label>
-                    <Select value={formData.category} onValueChange={(value) => handleFormChange('category', value)}>
-                      <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(categoryIcons).map(([key, { label }]) => (
-                          <SelectItem key={key} value={key} className="text-sm">{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="What was this expense for?"
-                    value={formData.description}
-                    onChange={(e) => handleFormChange('description', e.target.value)}
-                    rows={2}
-                    className="text-sm"
+            ))}
+          </div>
+
+          {/* Selected Date Details */}
+          {selectedDate && (
+            <div className="border-t pt-4 mt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  {selectedDate.toLocaleDateString('en-IN', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Quick add amount"
+                    value={quickAddAmount}
+                    onChange={(e) => setQuickAddAmount(e.target.value)}
+                    className="w-32"
                   />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date" className="text-sm">Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => handleFormChange('date', e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="time" className="text-sm">Time</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={formData.time}
-                      onChange={(e) => handleFormChange('time', e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setShowAddExpense(false)} className="w-full sm:w-auto text-sm">
-                    Cancel
-                  </Button>
                   <Button 
-                    variant="hero" 
-                    onClick={handleAddTransaction}
-                    disabled={!formData.amount || !formData.category || !formData.description}
-                    className="w-full sm:w-auto text-sm"
+                    size="sm" 
+                    onClick={() => handleQuickAdd(selectedDate)}
+                    disabled={!quickAddAmount || parseFloat(quickAddAmount) <= 0}
                   >
+                    Add
+                  </Button>
+                  <Button size="sm" onClick={openAddExpenseModal}>
+                    <Plus className="w-4 h-4 mr-1" />
                     Add Expense
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Calendar - Takes full width on mobile, 3 columns on large screens */}
-        <div className="lg:col-span-3">
-          <Card className="shadow-card border-0">
-            <CardHeader className="pb-4 sm:pb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
-                  <CalendarIcon className="w-5 h-5 text-primary" />
-                  {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => navigateMonth('next')}>
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
+              {getTransactionsForDate(selectedDate).length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
+                  <p>No expenses recorded for this date</p>
+                  <p className="text-sm mt-1">Click "Add Expense" to record your first expense</p>
                 </div>
-              </div>
-              <CardDescription className="text-sm">
-                Click on any date to view detailed transactions.
-              </CardDescription>
-              <div className="mt-2 p-3 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-primary">Total spent this month:</span>
-                  <span className="text-xl sm:text-2xl font-bold text-primary">₹{monthTotal.toLocaleString()}</span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1 mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="p-2 text-center text-xs sm:text-sm font-medium text-muted-foreground">
-                    {day}
-                  </div>
-                ))}
-                
-                {getDaysInMonth(currentMonth).map((date, index) => {
-                  if (!date) {
-                    return <div key={index} className="p-2"></div>;
-                  }
-                  
-                  const dayTotal = debugDayTotal(date, getDayTotal(date));
-                  const hasExpenses = dayTotal > 0;
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  const isSelected = selectedDate?.toDateString() === date.toDateString();
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`p-2 h-[70px] sm:h-[80px] border rounded-lg cursor-pointer transition-all hover:shadow-md flex flex-col ${
-                        isSelected ? 'border-primary bg-primary/5' : 
-                        isToday ? 'border-primary bg-primary/10' : 
-                        hasExpenses ? 'border-border bg-surface/50' : 'border-border'
-                      }`}
-                      onClick={() => setSelectedDate(date)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className={`text-sm sm:text-base font-medium ${isToday ? 'text-primary' : ''}`}>
-                          {date.getDate()}
-                        </span>
-                        {hasExpenses && (
-                          <div className="w-2 h-2 rounded-full bg-danger"></div>
-                        )}
-                      </div>
-                      
-                      {hasExpenses && (
-                        <div className="mt-1 flex-1 flex items-end justify-end">
-                          <div className="text-xs font-medium text-danger truncate max-w-full" style={{ direction: 'rtl', textAlign: 'right' }}>
-                            ₹{formatCompactAmount(dayTotal)}
+              ) : (
+                <>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {getTransactionsForDate(selectedDate).map(transaction => (
+                      <div key={transaction.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">
+                            {getCategoryIcon(transaction.category)}
+                          </div>
+                          <div>
+                            <div className="font-medium">{transaction.description}</div>
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
+                              <Badge variant="secondary" className={getCategoryColor(transaction.category)}>
+                                {transaction.category}
+                              </Badge>
+                              <span>{transaction.time}</span>
+                            </div>
                           </div>
                         </div>
-                      )}
-                      
-                      {!hasExpenses && (
-                        <div className="mt-1 flex-1 flex items-end justify-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedDate(date);
-                              setShowAddExpense(true);
-                            }}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Sidebar - Full width on mobile */}
-        <div className="space-y-6">
-          {/* Selected Date Details */}
-          {selectedDate && (
-            <Card className="shadow-card border-0">
-              <CardHeader className="pb-4 sm:pb-6">
-                <CardTitle className="text-lg">
-                  {selectedDate.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Daily transactions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {getTransactionsForDate(selectedDate).length > 0 ? (
-                  <>
-                    {getTransactionsForDate(selectedDate).map((transaction) => (
-                      <div key={transaction.id} className="p-3 rounded-lg bg-surface/50 hover:bg-surface/70 transition-colors">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg ${categoryIcons[transaction.category]?.color} flex items-center justify-center`}>
-                              {categoryIcons[transaction.category] && 
-                                React.createElement(categoryIcons[transaction.category].icon, { className: "w-4 h-4 text-white" })
-                              }
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{transaction.description}</p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {transaction.time}
-                              </p>
-                            </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <div className="font-bold text-red-600">₹{transaction.amount.toLocaleString()}</div>
                           </div>
-                          <div className="flex items-center justify-between sm:justify-end gap-2">
-                            <span className="font-medium text-danger">₹{transaction.amount}</span>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 hover:bg-primary/10"
-                                onClick={() => openEditDialog(transaction)}
-                              >
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
-                                onClick={() => openDeleteDialog(transaction)}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => openEditExpenseModal(transaction)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteTransaction(transaction.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -842,154 +599,22 @@ const ExpenseCalendar = () => {
                         <span className="font-bold text-danger">₹{getDayTotal(selectedDate).toLocaleString()}</span>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <CalendarIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No expenses for this day</p>
-                    <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowAddExpense(true)}>
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Expense
-                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </>
+              )}
+            </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Edit Transaction Dialog */}
-      <Dialog open={showEditExpense} onOpenChange={setShowEditExpense}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Edit Expense</DialogTitle>
-            <DialogDescription className="text-sm">Update the expense details</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-amount" className="text-sm">Amount (₹)</Label>
-                <Input
-                  id="edit-amount"
-                  type="number"
-                  placeholder="0"
-                  value={formData.amount}
-                  onChange={(e) => handleFormChange('amount', e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-category" className="text-sm">Category</Label>
-                <Select value={formData.category} onValueChange={(value) => handleFormChange('category', value)}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(categoryIcons).map(([key, { label }]) => (
-                      <SelectItem key={key} value={key} className="text-sm">{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description" className="text-sm">Description</Label>
-              <Textarea
-                id="edit-description"
-                placeholder="What was this expense for?"
-                value={formData.description}
-                onChange={(e) => handleFormChange('description', e.target.value)}
-                rows={2}
-                className="text-sm"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-date" className="text-sm">Date</Label>
-                <Input
-                  id="edit-date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => handleFormChange('date', e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-time" className="text-sm">Time</Label>
-                <Input
-                  id="edit-time"
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => handleFormChange('time', e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowEditExpense(false)} className="w-full sm:w-auto text-sm">
-                Cancel
-              </Button>
-              <Button 
-                variant="hero" 
-                onClick={handleEditTransaction}
-                disabled={!formData.amount || !formData.category || !formData.description}
-                className="w-full sm:w-auto text-sm"
-              >
-                Update Expense
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <AlertCircle className="w-5 h-5 text-destructive" />
-              Delete Expense
-            </DialogTitle>
-            <DialogDescription className="text-sm">
-              Are you sure you want to delete this expense? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {deletingTransaction && (
-              <Alert>
-                <AlertDescription>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg ${categoryIcons[deletingTransaction.category]?.color} flex items-center justify-center`}>
-                      {categoryIcons[deletingTransaction.category] && 
-                        React.createElement(categoryIcons[deletingTransaction.category].icon, { className: "w-4 h-4 text-white" })
-                      }
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{deletingTransaction.description}</p>
-                      <p className="text-sm text-muted-foreground">
-                        ₹{deletingTransaction.amount} • {deletingTransaction.date}
-                      </p>
-                    </div>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-            <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="w-full sm:w-auto text-sm">
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleDeleteTransaction}
-                className="w-full sm:w-auto text-sm"
-              >
-                Delete Expense
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Use TransactionModal instead of the custom dialog */}
+      <TransactionModal
+        isOpen={isTransactionModalOpen}
+        onClose={() => setIsTransactionModalOpen(false)}
+        onSubmit={handleTransactionSubmit}
+        editingTransaction={editingTransaction}
+        initialType="expense"
+      />
     </div>
   );
 };

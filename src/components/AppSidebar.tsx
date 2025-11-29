@@ -8,7 +8,8 @@ import {
   Brain,
   PiggyBank,
   User,
-  Receipt
+  Receipt,
+  CreditCard
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { getAuthUser } from '@/lib/auth';
@@ -33,7 +34,7 @@ const navigationItems = [
   { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "Transactions", url: "/transactions", icon: Receipt },
   { title: "Smart Planner", url: "/planner", icon: Target },
-  { title: "Loan Analyzer", url: "/loans", icon: Calculator },
+  { title: "Loan Analyzer", url: "/loans", icon: Calculator },  
   { title: "Tax Tips", url: "/tax-tips", icon: Shield },
   { title: "AI Mentor", url: "/ai-mentor", icon: Bot },
   // Memory works behind the scenes - no UI needed

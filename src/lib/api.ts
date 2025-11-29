@@ -68,6 +68,7 @@ export const transactionAPI = {
     date?: string;
     tags?: string[];
     location?: string;
+    lendTo?: string;
     paymentMethod?: string;
     recurring?: {
       isRecurring: boolean;
@@ -89,6 +90,7 @@ export const transactionAPI = {
     date: string;
     tags: string[];
     location: string;
+    lendTo: string;
     paymentMethod: string;
   }>) => {
     return apiRequest(`/transactions/${id}`, {
@@ -450,6 +452,39 @@ export const aiAPI = {
   deleteMessage: async (timestamp: string) => {
     return apiRequest(`/ai/message/${timestamp}`, {
       method: 'DELETE',
+    });
+  },
+};
+
+// Lend Person API functions
+export const lendPersonAPI = {
+  // Get all saved people
+  getAll: async () => {
+    return apiRequest('/lend-people');
+  },
+
+  // Add new person
+  add: async (name: string) => {
+    return apiRequest('/lend-people', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  // Delete person
+  delete: async (name: string) => {
+    return apiRequest(`/lend-people/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// AI Lending Recommendations API functions
+export const aiLendingAPI = {
+  // Get lending recommendations
+  getRecommendations: async () => {
+    return apiRequest('/ai/lending-recommendations', {
+      method: 'POST',
     });
   },
 };

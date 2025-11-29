@@ -58,10 +58,13 @@ export default function OnboardingModal({ open, onComplete }: OnboardingModalPro
   });
 
   const updateField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (field === 'monthlyIncome') {
-      setFormData(prev => ({ ...prev, annualIncome: (parseFloat(value) * 12).toString() }));
-    }
+    setFormData(prev => {
+      const updatedData = { ...prev, [field]: value };
+      if (field === 'monthlyIncome') {
+        updatedData.annualIncome = (parseFloat(value) * 12).toString();
+      }
+      return updatedData;
+    });
   };
 
   const updateInvestment = (field: string, value: string) => {
@@ -203,30 +206,37 @@ export default function OnboardingModal({ open, onComplete }: OnboardingModalPro
 
               <div className="mt-4">
                 <Label className="mb-3 block">Profession *</Label>
-                <RadioGroup value={formData.profession} onValueChange={(val) => updateField('profession', val)} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <RadioGroup 
+                  value={formData.profession} 
+                  onValueChange={(val) => {
+                    console.log('Profession changed to:', val);
+                    updateField('profession', val);
+                  }} 
+                  className="grid grid-cols-2 md:grid-cols-4 gap-3"
+                >
                   <div className={`relative flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${formData.profession === 'student' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                    <RadioGroupItem value="student" id="student" className="sr-only" />
+                    <RadioGroupItem value="student" id="student" />
                     <Label htmlFor="student" className="flex items-center gap-2 cursor-pointer w-full">
                       <GraduationCap className={`w-5 h-5 ${formData.profession === 'student' ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="font-medium text-sm">Student</span>
                     </Label>
                   </div>
                   <div className={`relative flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${formData.profession === 'salaried' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                    <RadioGroupItem value="salaried" id="salaried" className="sr-only" />
+                    <RadioGroupItem value="salaried" id="salaried" />
                     <Label htmlFor="salaried" className="flex items-center gap-2 cursor-pointer w-full">
                       <Briefcase className={`w-5 h-5 ${formData.profession === 'salaried' ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="font-medium text-sm">Salaried</span>
                     </Label>
                   </div>
                   <div className={`relative flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${formData.profession === 'freelancer' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                    <RadioGroupItem value="freelancer" id="freelancer" className="sr-only" />
+                    <RadioGroupItem value="freelancer" id="freelancer" />
                     <Label htmlFor="freelancer" className="flex items-center gap-2 cursor-pointer w-full">
                       <Users className={`w-5 h-5 ${formData.profession === 'freelancer' ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="font-medium text-sm">Freelancer</span>
                     </Label>
                   </div>
                   <div className={`relative flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${formData.profession === 'business' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                    <RadioGroupItem value="business" id="business" className="sr-only" />
+                    <RadioGroupItem value="business" id="business" />
                     <Label htmlFor="business" className="flex items-center gap-2 cursor-pointer w-full">
                       <Building2 className={`w-5 h-5 ${formData.profession === 'business' ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="font-medium text-sm">Business</span>

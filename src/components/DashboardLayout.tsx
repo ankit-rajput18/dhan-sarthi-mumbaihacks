@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Search, Settings, LogOut } from "lucide-react";
+import { Search, Settings, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 onClick={handleSettingsClick}
                 title="Edit Profile"
               >
-                <Settings className="w-4 h-4" />
+                <User className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout} className="hidden sm:inline-flex">
                 <LogOut className="w-4 h-4 mr-2" />

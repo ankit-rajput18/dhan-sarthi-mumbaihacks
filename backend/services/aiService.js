@@ -7,6 +7,7 @@ const ChatMessage = require('../models/ChatMessage');
 const UserMemory = require('../models/UserMemory');
 const User = require('../models/User');
 const { analyzeAndUpdateMemory } = require('./memoryService');
+const { generateLendingRecommendations } = require('./lendingAIService');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
