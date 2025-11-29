@@ -1,15 +1,5 @@
 # 💰 DhanSarthi AI - Hackathon Edition
 
-<div align="center">
-  
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Frontend](https://img.shields.io/badge/frontend-React-blue)](https://reactjs.org/)
-[![Backend](https://img.shields.io/badge/backend-Node.js-green)](https://nodejs.org/)
-[![Database](https://img.shields.io/badge/database-MongoDB-brightgreen)](https://www.mongodb.com/)
-[![AI](https://img.shields.io/badge/AI-Google%20Gemini-purple)](https://ai.google.dev/)
-
-</div>
-
 ## 👥 Team Information
 
 **Team Name:** Vibe Coder's 
@@ -50,23 +40,23 @@ Our system learns your financial patterns, remembers your goals, and provides in
 
 ## 🛠️ Tech Stack
 
-### Frontend
+## Frontend
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![ShadcnUI](https://img.shields.io/badge/ShadcnUI-000000?style=for-the-badge&logo=shadcnui&logoColor=white)
 
-### Backend
+## Backend
 ![NodeJS](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![ExpressJS](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-black?style=for-the-badge&logo=JSON%20web%20tokens)
 
-### AI/ML
+## AI/ML
 ![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E7CC3?style=for-the-badge&logo=googlegemini&logoColor=white)
 
-### DevOps & Tools
+## DevOps & Tools
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-4F6FEB?style=for-the-badge&logo=render&logoColor=white)
 ![NPM](https://img.shields.io/badge/NPM-CB3837?style=for-the-badge&logo=npm&logoColor=white)
